@@ -4,7 +4,6 @@ Displays an onboarding guide explaining how to use the pie menu
 with a modern, visually appealing design.
 """
 
-
 from PyQt6.QtCore import QEvent, Qt
 from PyQt6.QtWidgets import QDialog, QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
 

@@ -99,7 +99,9 @@ class MenuProfile:
     name: str
     trigger_key: str
     items: list[PieSlice]
-    target_apps: list[str] = field(default_factory=list)  # List of exe names or window titles. Empty = Global
+    target_apps: list[str] = field(
+        default_factory=list
+    )  # List of exe names or window titles. Empty = Global
 
     def __post_init__(self):
         if self.target_apps is None:

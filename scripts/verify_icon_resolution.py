@@ -21,5 +21,6 @@ def verify():
         print("FAILURE: File does not exist or resolution failed.")
         sys.exit(1)
 
+
 if __name__ == "__main__":
     verify()

@@ -12,7 +12,8 @@ if __name__ == "__main__":
     # Initialize basic logging first
     try:
         from src.core.logger import get_logger, setup_logger
-        setup_logger() # Ensure 'piemenu' logger exists with handlers
+
+        setup_logger()  # Ensure 'piemenu' logger exists with handlers
         logger = get_logger("launcher")
         logger.info("Starting MixedBerryPie via launcher")
     except Exception as e:

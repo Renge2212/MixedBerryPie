@@ -1,4 +1,3 @@
-
 import os
 import sys
 
@@ -50,6 +49,7 @@ def verify_translations():
     else:
         print("\nFAILURE: Some translations are missing or incorrect.")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     # Ensure src is in path

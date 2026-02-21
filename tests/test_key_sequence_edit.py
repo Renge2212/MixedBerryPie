@@ -7,6 +7,7 @@ from src.ui.settings_ui import KeySequenceEdit
 
 # qapp fixture is provided by conftest.py
 
+
 def test_signal_emission(qapp):
     """Test that recording status signal is emitted correctly"""
     obj = KeySequenceEdit()
@@ -24,6 +25,7 @@ def test_signal_emission(qapp):
     obj.setIsRecording(False)
     assert obj.recording is False
     mock_slot.assert_called_with(False)
+
 
 def test_ctrl_key_behavior(qapp):
     """Test that modifier keys alone do not stop recording"""
@@ -45,6 +47,7 @@ def test_ctrl_key_behavior(qapp):
     assert obj.recording is False
     assert obj.text().lower() == "ctrl+a"
 
+
 def test_set_mode_preserves_recording(qapp):
     """Verify that calling setMode with same mode does not reset recording state"""
     edit = KeySequenceEdit()
@@ -54,6 +57,7 @@ def test_set_mode_preserves_recording(qapp):
     # Calling setMode('key') again should NOT reset recording
     edit.setMode("key")
     assert edit.recording is True
+
 
 def test_preview_update_loop_regression(qapp):
     """Regression test for the loop where setText triggers update_preview triggers setMode"""

@@ -8,6 +8,7 @@ from src.ui.overlay import PieOverlay
 
 # qapp fixture is provided by conftest.py
 
+
 @pytest.fixture
 def overlay_setup(qapp):
     """Fixture to provide a PieOverlay instance with sample items."""
@@ -15,7 +16,7 @@ def overlay_setup(qapp):
         PieSlice(label="North", key="n", color="#FF0000"),
         PieSlice(label="East", key="e", color="#00FF00"),
         PieSlice(label="South", key="s", color="#0000FF"),
-        PieSlice(label="West", key="w", color="#FFFF00")
+        PieSlice(label="West", key="w", color="#FFFF00"),
     ]
     settings = AppSettings()
     # Disable animations for testing to ensure synchronous behavior
@@ -28,6 +29,7 @@ def overlay_setup(qapp):
     overlay.close()
     overlay.deleteLater()
 
+
 def test_initialization(overlay_setup):
     overlay, _, _ = overlay_setup
     assert len(overlay.menu_items) == 4
@@ -36,6 +38,7 @@ def test_initialization(overlay_setup):
     # radius_outer is calculated: min(200, overlay_size // 2 - 50)
     # Default overlay_size is 400, so 400 // 2 = 200.
     assert overlay.radius_outer == 200
+
 
 def test_empty_items_list(qapp):
     """Test overlay with empty items list"""
@@ -48,6 +51,7 @@ def test_empty_items_list(qapp):
     assert empty_overlay.selected_index == -1
 
     empty_overlay.close()
+
 
 def test_single_item(qapp):
     """Test overlay with single item"""
@@ -62,6 +66,7 @@ def test_single_item(qapp):
 
     single_overlay.close()
 
+
 def test_selection_inside_inner_radius(overlay_setup):
     overlay, _, _ = overlay_setup
     overlay.center_pos = QPoint(250, 250)
@@ -71,6 +76,7 @@ def test_selection_inside_inner_radius(overlay_setup):
     overlay.update_selection(QPoint(255, 255))
     assert overlay.selected_index == -1
 
+
 def test_selection_angle_calculation_north(overlay_setup):
     overlay, _, _ = overlay_setup
     overlay.center_pos = QPoint(250, 250)
@@ -78,6 +84,7 @@ def test_selection_angle_calculation_north(overlay_setup):
     # Position directly above center (North)
     overlay.update_selection(QPoint(250, 150))  # 100 pixels up
     assert overlay.selected_index == 0
+
 
 def test_selection_angle_calculation_east(overlay_setup):
     overlay, _, _ = overlay_setup
@@ -87,6 +94,7 @@ def test_selection_angle_calculation_east(overlay_setup):
     overlay.update_selection(QPoint(350, 250))  # 100 pixels right
     assert overlay.selected_index == 1
 
+
 def test_selection_angle_calculation_south(overlay_setup):
     overlay, _, _ = overlay_setup
     overlay.center_pos = QPoint(250, 250)
@@ -94,6 +102,7 @@ def test_selection_angle_calculation_south(overlay_setup):
     # Position directly below center (South)
     overlay.update_selection(QPoint(250, 350))  # 100 pixels down
     assert overlay.selected_index == 2
+
 
 def test_selection_angle_calculation_west(overlay_setup):
     overlay, _, _ = overlay_setup
@@ -103,13 +112,11 @@ def test_selection_angle_calculation_west(overlay_setup):
     overlay.update_selection(QPoint(150, 250))  # 100 pixels left
     assert overlay.selected_index == 3
 
+
 def test_selection_with_six_items(qapp):
     """Test selection with 6 items (60 degrees each)"""
     settings = AppSettings()
-    six_items = [
-        PieSlice(label=f"Item{i}", key=f"{i}", color="#FF0000")
-        for i in range(6)
-    ]
+    six_items = [PieSlice(label=f"Item{i}", key=f"{i}", color="#FF0000") for i in range(6)]
     overlay = PieOverlay(six_items, settings)
     overlay.is_visible = True
     overlay.center_pos = QPoint(250, 250)
@@ -126,9 +133,12 @@ def test_selection_with_six_items(qapp):
 
     for x, y, expected_index in test_positions:
         overlay.update_selection(QPoint(x, y))
-        assert overlay.selected_index == expected_index, f"Position ({x}, {y}) should select item {expected_index}"
+        assert overlay.selected_index == expected_index, (
+            f"Position ({x}, {y}) should select item {expected_index}"
+        )
 
     overlay.close()
+
 
 def test_hide_menu_without_selection(overlay_setup):
     """Test hiding menu without selection doesn't emit signal"""
@@ -142,6 +152,7 @@ def test_hide_menu_without_selection(overlay_setup):
     overlay.hide_menu(execute=True)
 
     assert len(signal_emitted) == 0
+
 
 def test_hide_menu_with_selection(overlay_setup):
     """Test hiding menu with selection emits correct signal"""
@@ -160,6 +171,7 @@ def test_hide_menu_with_selection(overlay_setup):
     # Selection should be reset
     assert overlay.selected_index == -1
 
+
 def test_hide_menu_without_execute(overlay_setup):
     """Test hiding menu without execute flag doesn't emit signal"""
     overlay, _, _ = overlay_setup
@@ -173,15 +185,16 @@ def test_hide_menu_without_execute(overlay_setup):
 
     assert len(signal_emitted) == 0
 
+
 def test_show_menu_positioning(overlay_setup):
     """Test show_menu covers screen and maps center_pos correctly"""
     overlay, _, _ = overlay_setup
 
-    with patch('src.ui.overlay.QCursor.pos', return_value=QPoint(800, 600)):
+    with patch("src.ui.overlay.QCursor.pos", return_value=QPoint(800, 600)):
         # Mock screen geometry
         mock_screen = MagicMock()
         mock_screen.geometry.return_value = QRect(0, 0, 2000, 2000)
-        with patch('PyQt6.QtWidgets.QApplication.screenAt', return_value=mock_screen):
+        with patch("PyQt6.QtWidgets.QApplication.screenAt", return_value=mock_screen):
             overlay.show_menu()
 
             # Window should be overlay_size (400) + padding (40) = 440
@@ -192,16 +205,17 @@ def test_show_menu_positioning(overlay_setup):
             # center_pos should be center of the widget (440/2 = 220)
             assert overlay.center_pos == QPoint(220, 220)
 
+
 def test_show_menu_on_secondary_screen(overlay_setup):
     """Test show_menu covers the correct screen when using multiple monitors"""
     overlay, _, _ = overlay_setup
 
     # Cursor on secondary screen (offset by 1920)
-    with patch('src.ui.overlay.QCursor.pos', return_value=QPoint(2000, 100)):
+    with patch("src.ui.overlay.QCursor.pos", return_value=QPoint(2000, 100)):
         # Mock screen geometry
         mock_screen = MagicMock()
         mock_screen.geometry.return_value = QRect(1920, 0, 1920, 1080)
-        with patch('PyQt6.QtWidgets.QApplication.screenAt', return_value=mock_screen):
+        with patch("PyQt6.QtWidgets.QApplication.screenAt", return_value=mock_screen):
             overlay.show_menu()
 
             # Window should be overlay_size (400) + padding (40) = 440
@@ -213,13 +227,11 @@ def test_show_menu_on_secondary_screen(overlay_setup):
             # center_pos should be center of widget (440/2 = 220)
             assert overlay.center_pos == QPoint(220, 220)
 
+
 def test_many_items(qapp):
     """Test overlay with many items (12)"""
     settings = AppSettings()
-    many_items = [
-        PieSlice(label=f"Item{i}", key=f"{i}", color="#FF0000")
-        for i in range(12)
-    ]
+    many_items = [PieSlice(label=f"Item{i}", key=f"{i}", color="#FF0000") for i in range(12)]
     overlay = PieOverlay(many_items, settings)
     overlay.is_visible = True
     overlay.center_pos = QPoint(250, 250)

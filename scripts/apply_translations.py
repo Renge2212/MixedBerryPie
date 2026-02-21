@@ -39,12 +39,10 @@ TRANSLATIONS = {
     "If actions don't execute, try increasing the Action Delay in settings": "アクションが実行されない場合は、設定でアクション遅延を増やしてみてください",
     "If the trigger key doesn't work, check for conflicts with other apps": "トリガーキーが機能しない場合は、他のアプリとの競合を確認してください",
     "Check the log file for detailed error messages": "詳細なエラーメッセージについてはログファイルを確認してください",
-
     # IconPickerWidget
     "Select Icon": "アイコンを選択",
     "Search icons...": "アイコンを検索...",
     "No Icon": "アイコンなし",
-
     # ItemEditorDialog
     "Edit Item": "アイテムを編集",
     "Label:": "ラベル:",
@@ -69,7 +67,6 @@ TRANSLATIONS = {
     "Command cannot be empty": "コマンドを入力してください",
     "Key Conflict": "キーの競合",
     "The key '{key}' is already used by the trigger key. Please choose a different key.": "キー '{key}' はトリガーキーとして使用されています。別のキーを選択してください。",
-
     # SettingsWindow
     "Pie Menu Settings": "パイメニュー設定",
     "Profiles": "プロファイル",
@@ -102,7 +99,6 @@ TRANSLATIONS = {
     "New Profile Name": "新しいプロファイル名",
     "Enter new profile name:": "新しいプロファイル名を入力:",
     "Profile '{new_name}' already exists.": "プロファイル '{new_name}' は既に存在します。",
-
     # WelcomeDialog
     "Welcome to Pie Menu!": "Pie Menu へようこそ！",
     "Pie Menu is a radial menu that appears when you press a trigger key.": "パイメニューは、トリガーキーを押すと表示される放射状メニューです。",
@@ -114,12 +110,10 @@ TRANSLATIONS = {
     "Right-click the tray icon to open settings": "トレイアイコンを右クリックして設定を開く",
     "Don't show this again": "次回から表示しない",
     "Get Started": "始める",
-
     # SystemTray
     "Pie Menu": "パイメニュー",
     "Help": "ヘルプ",
     "Exit": "終了",
-
     # Additional translations for missing strings
     "Search:": "検索:",
     "{} icons loaded": "{}個のアイコンを読み込みました",
@@ -169,6 +163,7 @@ TRANSLATIONS = {
     "You can access Settings from the System Tray icon.": "システムトレイアイコンから設定にアクセスできます。",
 }
 
+
 def apply_translations(ts_file):
     """Apply translations to the .xml file."""
     tree = ET.parse(ts_file)
@@ -177,23 +172,23 @@ def apply_translations(ts_file):
     applied_count = 0
     total_unfinished = 0
 
-    for context in root.findall('.//context'):
-        for message in context.findall('message'):
-            source_elem = message.find('source')
-            translation_elem = message.find('translation')
+    for context in root.findall(".//context"):
+        for message in context.findall("message"):
+            source_elem = message.find("source")
+            translation_elem = message.find("translation")
 
             if source_elem is not None and translation_elem is not None:
                 source_text = source_elem.text if source_elem.text else ""
 
                 # Check if translation is unfinished
-                if translation_elem.get('type') == 'unfinished':
+                if translation_elem.get("type") == "unfinished":
                     total_unfinished += 1
 
                     # Apply translation if available
                     if source_text in TRANSLATIONS:
                         translation_elem.text = TRANSLATIONS[source_text]
                         # Remove the 'type="unfinished"' attribute
-                        del translation_elem.attrib['type']
+                        del translation_elem.attrib["type"]
                         applied_count += 1
                         print(f"✓ Translated: {source_text[:50]}...")
                     else:
@@ -205,8 +200,9 @@ def apply_translations(ts_file):
     print(f"Still missing: {total_unfinished - applied_count}")
 
     # Write the updated file
-    tree.write(ts_file, encoding='utf-8', xml_declaration=True)
+    tree.write(ts_file, encoding="utf-8", xml_declaration=True)
     print(f"\nTranslations written to {ts_file}")
+
 
 if __name__ == "__main__":
     PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

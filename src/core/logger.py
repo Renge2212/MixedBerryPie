@@ -16,6 +16,7 @@ def is_admin():
     except Exception:
         return False
 
+
 # Project root (base of MixedBerryPie directory)
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 

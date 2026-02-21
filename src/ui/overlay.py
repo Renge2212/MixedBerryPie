@@ -102,7 +102,7 @@ class PieOverlay(QWidget):
         self.settings = settings
         self._update_dimensions()
         self._icon_cache.clear()  # Clear cache as icon size might have changed
-        self._recalculate_paths() # Rebuild static paths
+        self._recalculate_paths()  # Rebuild static paths
         self.update()
 
     def _update_dimensions(self) -> None:
@@ -279,7 +279,6 @@ class PieOverlay(QWidget):
         index = int((adj_degrees + angle_per_item / 2) / angle_per_item) % num_items
         self.selected_index = index
 
-
     def paintEvent(self, event):
         """Paint the pie menu.
 
@@ -319,7 +318,7 @@ class PieOverlay(QWidget):
 
             color = QColor(item.color)
             # Make it slightly transparent for glass/overlay effect based on settings
-            opacity_percent = getattr(self.settings, 'menu_opacity', 80)
+            opacity_percent = getattr(self.settings, "menu_opacity", 80)
             color.setAlpha(int(255 * opacity_percent / 100))
 
             is_selected = i == self.selected_index
@@ -338,7 +337,11 @@ class PieOverlay(QWidget):
                 if i < len(self._highlight_paths_cache):
                     path = self._highlight_paths_cache[i]
                 else:
-                    path = self._create_slice_path(angle_start=start_angle, angle_span=angle_span, radius=self.radius_outer + 10)
+                    path = self._create_slice_path(
+                        angle_start=start_angle,
+                        angle_span=angle_span,
+                        radius=self.radius_outer + 10,
+                    )
 
                 painter.setBrush(QBrush(QColor(item.color)))
                 pen_width = 2
@@ -409,7 +412,7 @@ class PieOverlay(QWidget):
             cache_key = (resolved_path, icon_size)
 
             # Check if SVG or standard image
-            if resolved_path.lower().endswith('.svg'):
+            if resolved_path.lower().endswith(".svg"):
                 if cache_key not in self._icon_cache:
                     pixmap = QPixmap(icon_size, icon_size)
                     pixmap.fill(Qt.GlobalColor.transparent)
@@ -428,9 +431,7 @@ class PieOverlay(QWidget):
                 pixmap = self._icon_cache[cache_key]
                 if not pixmap.isNull():
                     painter.drawPixmap(
-                        int(cx - icon_size / 2),
-                        int(cy - icon_size / 2 - 10),
-                        pixmap
+                        int(cx - icon_size / 2), int(cy - icon_size / 2 - 10), pixmap
                     )
             else:
                 # Handle Raster
@@ -441,9 +442,7 @@ class PieOverlay(QWidget):
                 pixmap = self._icon_cache[cache_key]
                 if not pixmap.isNull():
                     painter.drawPixmap(
-                        int(cx - icon_size / 2),
-                        int(cy - icon_size / 2 - 10),
-                        pixmap
+                        int(cx - icon_size / 2), int(cy - icon_size / 2 - 10), pixmap
                     )
 
         # Draw Label

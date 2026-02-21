@@ -40,8 +40,10 @@ try {
     # 3. Install pre-commit hooks
     if (Test-Path ".pre-commit-config.yaml") {
         Write-Step "Installing pre-commit hooks..."
-        uv run pre-commit install
-        Write-Success "Pre-commit hooks installed."
+        # Use uv tool install to prevent path encoding issues in Git Bash
+        uv tool install pre-commit
+        uv tool run pre-commit install
+        Write-Success "Pre-commit hooks installed globally."
     }
 
     # 4. Basic verification
