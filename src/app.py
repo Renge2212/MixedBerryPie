@@ -1,4 +1,5 @@
 import atexit
+import os
 import shlex
 import signal
 import subprocess
@@ -8,13 +9,14 @@ import webbrowser
 from typing import Any, cast
 
 from PyQt6.QtCore import QObject, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QIcon, QPainter, QPixmap
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 
 from src.core import config, i18n
 from src.core.config import MenuProfile
 from src.core.hook_manager import HookManager, _parse_key
 from src.core.logger import get_logger
+from src.core.utils import get_resource_path
 from src.core.version import __version__
 from src.core.win32_input import get_active_window_info, send_pynput_key_safely
 from src.ui.help_dialog import HelpDialog
@@ -149,16 +151,8 @@ class MixedBerryPieApp(QObject):
         app_logger.debug("Setting up system tray icon")
         self.tray_icon = QSystemTrayIcon(self.app)
 
-        # Create a simple icon
-        pixmap = QPixmap(64, 64)
-        pixmap.fill(QColor("transparent"))
-        painter = QPainter(pixmap)
-        painter.setBrush(QColor("#55FF55"))
-        painter.setPen(QColor("white"))
-        painter.drawEllipse(2, 2, 60, 60)
-        painter.end()
-
-        self.tray_icon.setIcon(QIcon(pixmap))
+        icon_path = get_resource_path(os.path.join("resources", "app_icon.ico"))
+        self.tray_icon.setIcon(QIcon(icon_path))
 
         # Context Menu
         menu = QMenu()
@@ -169,17 +163,17 @@ class MixedBerryPieApp(QObject):
             title_action.setEnabled(False)
         menu.addSeparator()
 
-        settings_action = menu.addAction("設定")
+        settings_action = menu.addAction(self.tr("Settings"))
         if settings_action:
             settings_action.triggered.connect(self.open_settings)
 
-        help_action = menu.addAction("ヘルプ")
+        help_action = menu.addAction(self.tr("Help"))
         if help_action:
             help_action.triggered.connect(self.open_help)
 
         menu.addSeparator()
 
-        exit_action = menu.addAction("MixedBerryPie を終了")
+        exit_action = menu.addAction(self.tr("Exit MixedBerryPie"))
         if exit_action:
             exit_action.triggered.connect(self.exit_app)
 

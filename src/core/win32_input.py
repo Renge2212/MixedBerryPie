@@ -1,7 +1,7 @@
 import ctypes
 import sys
 from ctypes import wintypes
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from pynput import keyboard as pynput_keyboard
 
@@ -22,7 +22,7 @@ if sys.platform == "win32":
     KEYEVENTF_UNICODE = 0x0004
 
     class MOUSEINPUT(ctypes.Structure):
-        _fields_ = [
+        _fields_: ClassVar[list[tuple[str, Any]]] = [
             ("dx", wintypes.LONG),
             ("dy", wintypes.LONG),
             ("mouseData", wintypes.DWORD),
@@ -32,7 +32,7 @@ if sys.platform == "win32":
         ]
 
     class KEYBDINPUT(ctypes.Structure):
-        _fields_ = [
+        _fields_: ClassVar[list[tuple[str, Any]]] = [
             ("wVk", wintypes.WORD),
             ("wScan", wintypes.WORD),
             ("dwFlags", wintypes.DWORD),
@@ -41,17 +41,21 @@ if sys.platform == "win32":
         ]
 
     class HARDWAREINPUT(ctypes.Structure):
-        _fields_ = [
+        _fields_: ClassVar[list[tuple[str, Any]]] = [
             ("uMsg", wintypes.DWORD),
             ("wParamL", wintypes.WORD),
             ("wParamH", wintypes.WORD),
         ]
 
     class InputUnion(ctypes.Union):
-        _fields_: ClassVar = [("ki", KEYBDINPUT), ("mi", MOUSEINPUT), ("hi", HARDWAREINPUT)]
+        _fields_: ClassVar[list[tuple[str, Any]]] = [
+            ("ki", KEYBDINPUT),
+            ("mi", MOUSEINPUT),
+            ("hi", HARDWAREINPUT),
+        ]
 
     class INPUT(ctypes.Structure):
-        _fields_: ClassVar = [("type", wintypes.DWORD), ("ii", InputUnion)]
+        _fields_: ClassVar[list[tuple[str, Any]]] = [("type", wintypes.DWORD), ("ii", InputUnion)]
 
     def _send_key_win32(vk: int, is_press: bool) -> None:
         """Send a keyboard event with our magic dwExtraInfo so HookManager can ignore it."""
@@ -232,3 +236,67 @@ def get_active_window_info() -> tuple[str | None, str | None]:
     except Exception as e:
         logger.error(f"Error getting active window info: {e}")
         return None, None
+
+
+def get_open_windows() -> list[tuple[str, str]]:
+    """Get a list of (executable_name, window_title) for all visible top-level windows."""
+    if sys.platform != "win32":
+        return []
+
+    import ctypes
+    import os
+    from ctypes import wintypes
+
+    # We need to re-access these because they might be inside the 'if win32' block
+    # but here we are in a top-level function. Actually they ARE top-level if sys.platform == "win32".
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+    windows: list[tuple[str, str]] = []
+
+    def enum_handler(hwnd: int, _: int) -> bool:
+        if user32.IsWindowVisible(hwnd):
+            # Window Title
+            length = user32.GetWindowTextLengthW(hwnd)
+            if length > 0:
+                title_buf = ctypes.create_unicode_buffer(length + 1)
+                user32.GetWindowTextW(hwnd, title_buf, length + 1)
+                title = title_buf.value
+
+                # Process Name
+                pid = wintypes.DWORD()
+                user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+                # 0x0400: PROCESS_QUERY_INFORMATION, 0x0010: PROCESS_VM_READ
+                h_process = kernel32.OpenProcess(0x0400 | 0x0010, False, pid)
+                exe_name = ""
+                if h_process:
+                    try:
+                        exe_buf = ctypes.create_unicode_buffer(1024)
+                        kernel32.K32GetModuleFileNameExW(h_process, None, exe_buf, 1024)
+                        full_path = exe_buf.value
+                        exe_name = os.path.basename(full_path).lower() if full_path else ""
+                    finally:
+                        kernel32.CloseHandle(h_process)
+
+                if title or exe_name:
+                    windows.append((exe_name, title))
+        return True
+
+    # Define callback type
+    enum_proc_type = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+    enum_proc = enum_proc_type(enum_handler)
+
+    user32.EnumWindows(enum_proc, 0)
+
+    # Filter out empty or common system processes if needed, but for now just unique it
+    seen = set()
+    unique_windows = []
+    # Sort primarily by exe_name, then by title
+    for exe, title in sorted(windows, key=lambda x: (x[0], x[1])):
+        if (exe, title) not in seen:
+            if exe in ("mixedberrypie.exe", "python.exe", "explorer.exe", "taskhostw.exe"):
+                continue  # Skip ourselves and some system stuff
+            unique_windows.append((exe, title))
+            seen.add((exe, title))
+
+    return unique_windows

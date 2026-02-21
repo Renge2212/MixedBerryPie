@@ -60,8 +60,8 @@ class HelpDialog(QDialog):
 
     def retranslateUi(self) -> None:
         """Update UI text with current translations."""
-        self.setWindowTitle(f"MixedBerryPie ヘルプ - v{__version__}")
-        self.close_btn.setText("閉じる")
+        self.setWindowTitle(self.tr("MixedBerryPie Help"))
+        self.close_btn.setText(self.tr("Close"))
         self.help_text.setHtml(self._generate_help_html())
 
     def changeEvent(self, event: Any) -> None:

@@ -4,7 +4,7 @@ import os
 import winreg
 from typing import Any
 
-from PyQt6.QtCore import QEvent, QPoint, QRectF, QSize, Qt, QThread, pyqtSignal
+from PyQt6.QtCore import QEvent, QPoint, QRect, QRectF, QSize, Qt, QThread, pyqtSignal
 from PyQt6.QtGui import (
     QBrush,
     QColor,
@@ -30,8 +30,10 @@ from PyQt6.QtWidgets import (
     QFrame,
     QGroupBox,
     QHBoxLayout,
+    QHeaderView,
     QInputDialog,
     QLabel,
+    QLayout,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
@@ -39,7 +41,10 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSlider,
+    QStyle,
     QTabWidget,
+    QTreeWidget,
+    QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -454,6 +459,250 @@ class IconPickerWidget(QDialog):
             self.accept()
         else:
             self.reject()
+
+
+class FlowLayout(QLayout):
+    """Standard FlowLayout implementation for Qt."""
+
+    def __init__(self, parent=None, margin=-1, hspacing=-1, vspacing=-1):
+        super().__init__(parent)
+        self._hspacing = hspacing
+        self._vspacing = vspacing
+        self._items = []
+        self.setContentsMargins(margin, margin, margin, margin)
+
+    def __del__(self):
+        del self._items[:]
+
+    def addItem(self, item):
+        self._items.append(item)
+
+    def horizontalSpacing(self):
+        if self._hspacing >= 0:
+            return self._hspacing
+        else:
+            return self.smartSpacing(QStyle.PixelMetric.PM_LayoutHorizontalSpacing)
+
+    def verticalSpacing(self):
+        if self._vspacing >= 0:
+            return self._vspacing
+        else:
+            return self.smartSpacing(QStyle.PixelMetric.PM_LayoutVerticalSpacing)
+
+    def count(self):
+        return len(self._items)
+
+    def itemAt(self, index):
+        if 0 <= index < len(self._items):
+            return self._items[index]
+        return None
+
+    def takeAt(self, index):
+        if 0 <= index < len(self._items):
+            return self._items.pop(index)
+        return None
+
+    def expandingDirections(self):
+        return Qt.Orientation(0)
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        return self._doLayout(QRect(0, 0, width, 0), True)
+
+    def setGeometry(self, rect):
+        super().setGeometry(rect)
+        self._doLayout(rect, False)
+
+    def sizeHint(self):
+        return self.minimumSize()
+
+    def minimumSize(self):
+        size = QSize()
+        for item in self._items:
+            size = size.expandedTo(item.minimumSize())
+        m = self.contentsMargins()
+        size += QSize(m.left() + m.right(), m.top() + m.bottom())
+        return size
+
+    def smartSpacing(self, pm):
+        parent = self.parent()
+        if parent is None:
+            return -1
+        elif parent.isWidgetType():
+            return parent.style().pixelMetric(pm, None, parent)
+        else:
+            return parent.spacing()
+
+    def _doLayout(self, rect, test_only):
+        left, top, right, bottom = self.getContentsMargins()
+        effective_rect = rect.adjusted(+left, +top, -right, -bottom)
+        x = effective_rect.x()
+        y = effective_rect.y()
+        line_height = 0
+
+        for item in self._items:
+            widget = item.widget()
+            space_x = self.horizontalSpacing()
+            if space_x == -1:
+                space_x = widget.style().pixelMetric(QStyle.PixelMetric.PM_LayoutHorizontalSpacing)
+            space_y = self.verticalSpacing()
+            if space_y == -1:
+                space_y = widget.style().pixelMetric(QStyle.PixelMetric.PM_LayoutVerticalSpacing)
+
+            next_x = x + item.sizeHint().width() + space_x
+            if next_x - space_x > effective_rect.right() and line_height > 0:
+                x = effective_rect.x()
+                y = y + line_height + space_y
+                next_x = x + item.sizeHint().width() + space_x
+                line_height = 0
+
+            if not test_only:
+                item.setGeometry(QRect(QPoint(x, y), item.sizeHint()))
+
+            x = next_x
+            line_height = max(line_height, item.sizeHint().height())
+
+        return y + line_height - rect.y() + bottom
+
+
+class AppTagWidget(QFrame):
+    """A small label showing a target app with a remove button."""
+
+    removed = pyqtSignal(str)
+
+    def __init__(self, text: str, parent=None):
+        super().__init__(parent)
+        self.text = text
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setObjectName("AppTag")
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(8, 4, 4, 4)
+        layout.setSpacing(5)
+        self.setLayout(layout)
+
+        self.label = QLabel(text)
+        layout.addWidget(self.label)
+
+        self.close_btn = QPushButton("×")
+        self.close_btn.setFixedSize(16, 16)
+        self.close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.close_btn.clicked.connect(lambda: self.removed.emit(self.text))
+        layout.addWidget(self.close_btn)
+
+        self._apply_style()
+
+    def _apply_style(self):
+        dark = is_dark_mode()
+        bg = "#444" if dark else "#e1e4e8"
+        border = "#666" if dark else "#d1d5da"
+        self.setStyleSheet(
+            f"""
+            QFrame#AppTag {{
+                background-color: {bg};
+                border: 1px solid {border};
+                border-radius: 12px;
+            }}
+            QLabel {{
+                background: transparent;
+                font-size: 11px;
+                padding-bottom: 1px;
+            }}
+            QPushButton {{
+                background: transparent;
+                border: none;
+                color: #888;
+                font-size: 14px;
+                font-weight: bold;
+                padding: 0;
+                margin-top: -2px;
+            }}
+            QPushButton:hover {{
+                color: #ff5555;
+            }}
+        """
+        )
+
+
+class AppPickerDialog(QDialog):
+    """Dialog to pick from running applications."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(self.tr("Select App"))
+        self.setMinimumWidth(500)
+        self.setMinimumHeight(400)
+
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        self.lbl_info = QLabel(
+            self.tr("Select an application from the running windows to add it to target apps.")
+        )
+        self.lbl_info.setWordWrap(True)
+        layout.addWidget(self.lbl_info)
+
+        self.table = QTreeWidget()
+        self.table.setColumnCount(2)
+        self.table.setHeaderLabels([self.tr("Process"), self.tr("Window Title")])
+        self.table.header().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.table.setSelectionMode(QTreeWidget.SelectionMode.SingleSelection)
+        self.table.setEditTriggers(QTreeWidget.EditTrigger.NoEditTriggers)
+        self.table.setRootIsDecorated(False)
+        self.table.setIndentation(0)
+        self.table.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # Remove focus rectangle
+        self.table.itemDoubleClicked.connect(lambda item, col: self.accept())
+        layout.addWidget(self.table)
+
+        btn_layout = QHBoxLayout()
+        self.btn_refresh = QPushButton(self.tr("Refresh"))
+        self.btn_refresh.clicked.connect(self._refresh_list)
+        self.btn_cancel = QPushButton(self.tr("Cancel"))
+        self.btn_cancel.clicked.connect(self.reject)
+        self.btn_ok = QPushButton(self.tr("Add Selected"))
+        self.btn_ok.clicked.connect(self.accept)
+        self.btn_ok.setStyleSheet("background-color: #2da44e; color: white; font-weight: bold;")
+
+        btn_layout.addWidget(self.btn_refresh)
+        btn_layout.addStretch()
+        btn_layout.addWidget(self.btn_cancel)
+        btn_layout.addWidget(self.btn_ok)
+        layout.addLayout(btn_layout)
+
+        self.selected_app = None
+        self._refresh_list()
+
+    def _refresh_list(self):
+        self.table.clear()
+        from src.core.win32_input import get_open_windows
+
+        windows = get_open_windows()
+
+        for exe, title in windows:
+            exe_item = QTreeWidgetItem([exe, title])
+            # Store the preferred value (exe if available, else title)
+            val = exe if exe else title
+            exe_item.setData(0, Qt.ItemDataRole.UserRole, val)
+            self.table.addTopLevelItem(exe_item)
+
+    def accept(self):
+        items = self.table.selectedItems()
+        if items:
+            # Item 0 is the QTreeWidgetItem, role data is at column 0
+            self.selected_app = items[0].data(0, Qt.ItemDataRole.UserRole)
+            super().accept()
+        else:
+            QMessageBox.warning(
+                self,
+                self.tr("Selection Required"),
+                self.tr("Please select an application from the list."),
+            )
+
+    def get_selected_app(self):
+        return self.selected_app
 
 
 class PieItemWidget(QFrame):
@@ -963,6 +1212,9 @@ class SettingsWindow(QWidget):
         # self.setWindowTitle set in retranslateUi
         self.resize(750, 600)  # Adjusted size for sidebar
 
+        icon_path = get_resource_path(os.path.join("resources", "app_icon.ico"))
+        self.setWindowIcon(QIcon(icon_path))
+
         self.profiles: list[MenuProfile] = []
         self.current_profile_idx = -1
         self.item_widgets: list[PieItemWidget] = []
@@ -1012,12 +1264,35 @@ class SettingsWindow(QWidget):
         self.lbl_global_hotkey = QLabel()
         trigger_layout.addRow(self.lbl_global_hotkey, self.trigger_input)
 
-        self.target_apps_edit = QLineEdit()
-        self.target_apps_edit.textChanged.connect(self.on_target_apps_changed)
-        self.target_apps_edit.textChanged.connect(self.set_dirty)
+        # Target Apps Container
+        self.target_apps_container = QFrame()
+        self.target_apps_container.setMinimumHeight(32)
+        self.target_apps_container.setStyleSheet("background-color: transparent;")
+        self.target_apps_layout = FlowLayout(
+            self.target_apps_container, margin=2, hspacing=4, vspacing=4
+        )
+
+        self.btn_pick_app = QPushButton()
+        self.btn_pick_app.setFixedSize(28, 28)
+        self.btn_pick_app.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        # Perfection alignment: Use a label inside the button's layout
+        btn_inner_layout = QHBoxLayout(self.btn_pick_app)
+        btn_inner_layout.setContentsMargins(0, 0, 0, 0)
+        self.btn_pick_label = QLabel("+")
+        self.btn_pick_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.btn_pick_label.setStyleSheet("font-size: 18px; background: transparent; border: none;")
+        btn_inner_layout.addWidget(self.btn_pick_label)
+
+        self.btn_pick_app.clicked.connect(self.pick_target_app)
+
+        target_input_layout = QHBoxLayout()
+        target_input_layout.setContentsMargins(0, 0, 0, 0)
+        target_input_layout.addWidget(self.target_apps_container, 1)
+        target_input_layout.addWidget(self.btn_pick_app)
 
         self.lbl_target_apps = QLabel()
-        trigger_layout.addRow(self.lbl_target_apps, self.target_apps_edit)
+        trigger_layout.addRow(self.lbl_target_apps, target_input_layout)
 
         self.group_trigger.setLayout(trigger_layout)
         menu_layout.addWidget(self.group_trigger)
@@ -1280,14 +1555,7 @@ class SettingsWindow(QWidget):
         self.group_trigger.setTitle(self.tr("Trigger Key"))
         self.lbl_global_hotkey.setText(self.tr("Global Hotkey:"))
         self.lbl_target_apps.setText(self.tr("Target Apps:"))
-        self.target_apps_edit.setPlaceholderText(
-            self.tr("All apps (blank) or 'chrome.exe', 'Notepad' etc.")
-        )
-        self.target_apps_edit.setToolTip(
-            self.tr(
-                "Comma-separated list of executables or window titles.\nIf blank, it will be enabled in all apps."
-            )
-        )
+        self.btn_pick_app.setToolTip(self.tr("Pick from running apps"))
 
         # Items
         self.group_items.setTitle(self.tr("Menu Items"))
@@ -1539,9 +1807,9 @@ class SettingsWindow(QWidget):
         p = self.profiles[index]
         self.trigger_input.setText(p.trigger_key)
 
-        # Display list as comma joined string
+        # Display list as tags
         targets = p.target_apps if p.target_apps else []
-        self.target_apps_edit.setText(", ".join(targets))
+        self._update_app_tags(targets)
 
         self.update_item_list(p.items)
         self.preview_widget.update_items(p.items)
@@ -1590,15 +1858,56 @@ class SettingsWindow(QWidget):
             except (RuntimeError, AttributeError):
                 self.selected_item_widget = None
 
+    def pick_target_app(self):
+        """Open app picker and add the selected app."""
+        dialog = AppPickerDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            app = dialog.get_selected_app()
+            if app:
+                self._add_app_tag(app)
+
+    def _add_app_tag(self, app_name: str):
+        """Add a single app tag if it doesn't exist."""
+        if self.current_profile_idx == -1:
+            return
+
+        profile = self.profiles[self.current_profile_idx]
+        if not profile.target_apps:
+            profile.target_apps = []
+
+        if app_name not in profile.target_apps:
+            profile.target_apps.append(app_name)
+            self._update_app_tags(profile.target_apps)
+            self.set_dirty()
+
+    def _update_app_tags(self, apps: list[str]):
+        """Clear and rebuild the app tags in the UI."""
+        # Clear existing layout items
+        while self.target_apps_layout.count():
+            child = self.target_apps_layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+
+        # Add tags
+        for app in apps:
+            tag = AppTagWidget(app)
+            tag.removed.connect(self._on_app_tag_removed)
+            self.target_apps_layout.addWidget(tag)
+
+    def _on_app_tag_removed(self, app_name: str):
+        """Handle tag removal."""
+        if self.current_profile_idx == -1:
+            return
+
+        profile = self.profiles[self.current_profile_idx]
+        if profile.target_apps and app_name in profile.target_apps:
+            profile.target_apps.remove(app_name)
+            self._update_app_tags(profile.target_apps)
+            self.set_dirty()
+
     def on_trigger_changed(self, text):
         if self.current_profile_idx != -1:
             self.profiles[self.current_profile_idx].trigger_key = text
-
-    def on_target_apps_changed(self, text):
-        if self.current_profile_idx != -1:
-            # Split by comma and strip whitespace
-            targets = [t.strip() for t in text.split(",") if t.strip()]
-            self.profiles[self.current_profile_idx].target_apps = targets
 
     def add_profile(self, default_name=None):
         name, ok = QInputDialog.getText(

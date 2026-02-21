@@ -90,3 +90,28 @@ def test_key_sequence_edit_recording_disabled_in_text_mode(qapp):
 
     edit.setIsRecording(True)
     assert edit.recording is False
+
+
+def test_target_apps_tags_ui(settings_ui_setup):
+    """Test adding and removing app tags in the UI."""
+    window, profile, _, _, _ = settings_ui_setup
+
+    # Switch to the profile to ensure UI is updated
+    window.switch_profile(0)
+    assert window.current_profile_idx == 0
+    assert window.profiles[0] is profile
+
+    # Initially 0 tags
+    assert len(profile.target_apps) == 0
+    initial_count = window.target_apps_layout.count()
+
+    # Add a tag
+    window._add_app_tag("notepad.exe")
+    assert "notepad.exe" in profile.target_apps
+    assert window.target_apps_layout.count() == initial_count + 1
+
+    # Remove the tag
+    window._on_app_tag_removed("notepad.exe")
+
+    assert "notepad.exe" not in profile.target_apps
+    assert window.target_apps_layout.count() == initial_count

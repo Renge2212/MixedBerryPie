@@ -23,15 +23,23 @@ def verify_translations():
 
     # Test cases: context, source, expected
     test_cases = [
-        ("PieMenuApp", "Settings", "設定"),
-        ("PieMenuApp", "Exit PieMenu", "PieMenuを終了"),
+        ("MixedBerryPieApp", "Settings", "設定"),
+        ("MixedBerryPieApp", "Help", "ヘルプ"),
+        ("MixedBerryPieApp", "Exit MixedBerryPie", "MixedBerryPie を終了"),
+        ("HelpDialog", "MixedBerryPie Help", "MixedBerryPie ヘルプ"),
         ("HelpDialog", "Close", "閉じる"),
         ("IconPickerWidget", "Select Icon", "アイコンを選択"),
         ("IconPickerWidget", "Search icons...", "アイコンを検索..."),
         ("ItemEditorDialog", "Cancel", "キャンセル"),
         ("SettingsWindow", "Menu Profiles", "メニュープロファイル"),
         ("HelpDialog", "How to Use", "使い方"),
-        ("HelpDialog", "Settings", "設定"),
+        ("SettingsWindow", "Target Apps:", "対象アプリ:"),
+        ("SettingsWindow", "Pick from running apps", "実行中のアプリから選択"),
+        ("AppPickerDialog", "Select App", "アプリを選択"),
+        ("AppPickerDialog", "Process", "プロセス"),
+        ("AppPickerDialog", "Window Title", "ウィンドウタイトル"),
+        ("AppPickerDialog", "Refresh", "更新"),
+        ("AppPickerDialog", "Add Selected", "選択したアプリを追加"),
     ]
 
     all_passed = True

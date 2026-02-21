@@ -114,6 +114,8 @@ TRANSLATIONS = {
     "Pie Menu": "パイメニュー",
     "Help": "ヘルプ",
     "Exit": "終了",
+    "Exit MixedBerryPie": "MixedBerryPie を終了",
+    "MixedBerryPie Help": "MixedBerryPie ヘルプ",
     # Additional translations for missing strings
     "Search:": "検索:",
     "{} icons loaded": "{}個のアイコンを読み込みました",
@@ -139,6 +141,15 @@ TRANSLATIONS = {
     "Trigger Key": "トリガーキー",
     "Global Hotkey:": "グローバルホットキー:",
     "Target Apps:": "対象アプリ:",
+    "Pick from running apps": "実行中のアプリから選択",
+    "Select App": "アプリを選択",
+    "Window Title": "ウィンドウタイトル",
+    "Process": "プロセス",
+    "Select an application from the running windows to add it to target apps.": "実行中のウィンドウからアプリケーションを選択して、対象アプリに追加します。",
+    "Refresh": "更新",
+    "Add Selected": "選択したアプリを追加",
+    "Selection Required": "選択が必要です",
+    "Please select an application from the list.": "リストからアプリケーションを選択してください。",
     "Edit": "編集",
     "Remove": "削除",
     "Live Preview": "ライブプレビュー",
@@ -161,6 +172,49 @@ TRANSLATIONS = {
     "Release": "離す",
     "Release the key to execute!": "キーを離して実行！",
     "You can access Settings from the System Tray icon.": "システムトレイアイコンから設定にアクセスできます。",
+    "Press Trigger Key:": "トリガーキーを押す:",
+    "Pie menu will appear around the mouse cursor position": "マウスカーソルの周りにパイメニューが表示されます",
+    "Move mouse to select an item (highlighted)": "マウスを動かしてアイテムを選択 (ハイライト)",
+    "Release without selection to replay original key (depending on settings)": "選択せずに離すと元のキー入力を再現します (設定による)",
+    "Showing default profile": "デフォルトプロファイルを表示中",
+    "Current Settings": "現在の設定",
+    "Menu Size:": "メニューサイズ:",
+    "Right-click tray icon to open settings": "トレイアイコンを右クリックして設定を開く",
+    "Customize colors, labels, and shortcuts in settings": "設定画面で色、ラベル、ショートカットをカスタマイズ",
+    "MixedBerryPie works in all applications": "MixedBerryPieはすべてのアプリケーションで動作します",
+    "Log file location:": "ログファイルの場所:",
+    "(For troubleshooting)": "(トラブルシューティング用)",
+    "If actions don't execute, try increasing the action delay in settings": "アクションが実行されない場合は、設定でアクション遅延を増やしてください",
+    "If trigger key doesn't respond, check for conflicts with other apps": "トリガーキーが反応しない場合は、他のアプリとの競合を確認してください",
+    "Check the log file for detailed errors": "詳細なエラーはログファイルを確認してください",
+    "Loading icons...": "アイコンを読み込み中...",
+    "Loaded {} icons...": "{}個のアイコンを読み込みました...",
+    "e.g. Copy, Paste, Brush...": "例: コピー、貼り付け、ブラシ...",
+    "Click to record keys...": "クリックしてキーを記録...",
+    "Image Files (*.png *.jpg *.jpeg *.ico *.svg);;All Files (*)": "画像ファイル (*.png *.jpg *.jpeg *.ico *.svg);;すべてのファイル (*)",
+    "Enter text...": "テキストを入力...",
+    "Press keys...": "キーを押す...",
+    "Click to record keys": "クリックしてキーを記録",
+    "MixedBerryPie Settings": "MixedBerryPie 設定",
+    "All apps (blank) or 'chrome.exe', 'Notepad' etc.": "すべてのアプリ(空白)または 'chrome.exe', 'Notepad' など",
+    "Comma-separated list of executables or window titles.\nIf blank, it will be enabled in all apps.": "実行ファイル名またはウィンドウタイトルのカンマ区切りリスト。\n空白の場合、すべてのアプリで有効になります。",
+    "Language": "言語",
+    "Display": "表示",
+    "Menu Opacity:": "メニューの不透明度:",
+    "Auto Scale:": "自動スケール:",
+    "Automatically adjust icons and text to menu size": "アイコンとテキストをメニューサイズに自動調整する",
+    "Text Size:": "テキストサイズ:",
+    "Behavior": "動作",
+    "Animations:": "アニメーション:",
+    "Enable menu open/close animations": "メニューの開閉アニメーションを有効にする",
+    "Execution Delay (ms):": "実行遅延 (ミリ秒):",
+    "Key Input Interval (ms):": "キー入力間隔 (ミリ秒):",
+    "Replay original key on cancel": "キャンセル時に元のキーを再現",
+    "If enabled, releasing the trigger key without selecting an item will replay the original key input.": "有効にすると、アイテムを選択せずにトリガーキーを離した場合、元のキー入力が再現されます。",
+    "Wait time before showing the menu (ms). 0 for immediate.": "メニューを表示するまでの待機時間(ミリ秒)。0で即時表示。",
+    "New name:": "新しい名前:",
+    "Profile '{}' already exists.": "プロファイル '{}' は既に存在します。",
+    "Welcome to MixedBerryPie!": "MixedBerryPieへようこそ！",
 }
 
 
@@ -206,7 +260,7 @@ def apply_translations(ts_file):
 
 if __name__ == "__main__":
     PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    TS_FILE = os.path.join(PROJECT_ROOT, "resources", "translations", "piemenu_ja.xml")
+    TS_FILE = os.path.join(PROJECT_ROOT, "resources", "translations", "piemenu_ja.ts")
 
     if not os.path.exists(TS_FILE):
         print(f"File not found: {TS_FILE}")

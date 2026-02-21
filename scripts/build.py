@@ -64,7 +64,7 @@ def build_executable():
         f"--name={app_name}",
         "--clean",
         "--add-data=resources;resources",
-        # Adding icons if we had one: "--icon=assets/icon.ico",
+        "--icon=resources/app_icon.ico",
         "run.py",
     ]
 

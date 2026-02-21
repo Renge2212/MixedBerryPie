@@ -128,3 +128,19 @@ def test_config_roundtrip(tmp_path, monkeypatch):
     assert loaded_profiles[0].name == "ProfileA"
     assert loaded_profiles[0].items[0].label == "L1"
     assert loaded_settings.action_delay_ms == 100
+
+
+def test_config_target_apps_list(tmp_path, monkeypatch):
+    """Verify that target_apps list is preserved during save/load."""
+    config_file = tmp_path / "menu_config.json"
+    monkeypatch.setattr("src.core.config.CONFIG_FILE", str(config_file))
+    monkeypatch.setattr("src.core.config.CONFIG_DIR", str(tmp_path))
+
+    target_apps = ["notepad.exe", "Chrome", "Discord"]
+    profile = MenuProfile(name="Apps", trigger_key="f3", items=[], target_apps=target_apps)
+
+    save_config([profile], AppSettings())
+    loaded_profiles, _ = load_config()
+
+    assert len(loaded_profiles) == 1
+    assert loaded_profiles[0].target_apps == target_apps

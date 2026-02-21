@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./resources/app_icon.svg" width="128" height="128" alt="MixedBerryPie Icon">
+</p>
+
 # MixedBerryPie
 
 キーボードショートカットを素早く呼び出し、生産性を向上させるための、高パフォーマンスでカスタマイズ可能なWindows用ラジアルパイメニューです。
