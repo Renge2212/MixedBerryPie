@@ -28,6 +28,8 @@ Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 LicenseFile=LICENSE
+SetupIconFile=resources\app_icon.ico
+UninstallDisplayIcon={app}\{#MyAppExeName}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
