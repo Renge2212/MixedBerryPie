@@ -13,9 +13,9 @@ repos:
     rev: v1.15.0
     hooks:
       - id: mypy
-        args: [src]
+        args: [.]
         pass_filenames: false
-        additional_dependencies: [pyqt6, keyboard]
+        additional_dependencies: [pyqt6, keyboard, Pillow, types-Pillow, pytest]
 
   - repo: local
     hooks:
