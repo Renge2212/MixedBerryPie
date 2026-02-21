@@ -1,7 +1,8 @@
 import os
 import shutil
 import sys
-from config_reader import get_app_display_name
+
+from config_reader import get_app_display_name  # type: ignore
 
 
 def build_executable():

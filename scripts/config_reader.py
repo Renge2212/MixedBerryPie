@@ -1,4 +1,5 @@
 """Configuration reader for MixedBerryPie project."""
+
 import tomllib
 from pathlib import Path
 
@@ -12,7 +13,7 @@ def read_pyproject_toml() -> dict:
     """Read and parse pyproject.toml."""
     project_root = get_project_root()
     toml_path = project_root / "pyproject.toml"
-    
+
     with open(toml_path, "rb") as f:
         return tomllib.load(f)
 
@@ -24,10 +25,10 @@ def get_app_display_name() -> str:
         # Get display name from tool.mixedberrypie.display_name
         display_name = data.get("tool", {}).get("mixedberrypie", {}).get("display_name")
         if display_name:
-            return display_name
+            return str(display_name)
     except (KeyError, FileNotFoundError, tomllib.TOMLDecodeError) as e:
         print(f"Warning: Could not read display_name from pyproject.toml: {e}")
-    
+
     # Fallback to default
     return "MixedBerryPie"
 
@@ -36,7 +37,7 @@ def get_app_name() -> str:
     """Get the application name (package name) from pyproject.toml."""
     try:
         data = read_pyproject_toml()
-        return data.get("project", {}).get("name", "mixedberrypie")
+        return str(data.get("project", {}).get("name", "mixedberrypie"))
     except (KeyError, FileNotFoundError, tomllib.TOMLDecodeError) as e:
         print(f"Warning: Could not read project name from pyproject.toml: {e}")
         return "mixedberrypie"
@@ -46,7 +47,7 @@ def get_app_version() -> str:
     """Get the application version from pyproject.toml."""
     try:
         data = read_pyproject_toml()
-        return data.get("project", {}).get("version", "1.0.0")
+        return str(data.get("project", {}).get("version", "1.0.0"))
     except (KeyError, FileNotFoundError, tomllib.TOMLDecodeError) as e:
         print(f"Warning: Could not read version from pyproject.toml: {e}")
         return "1.0.0"
@@ -54,15 +55,17 @@ def get_app_version() -> str:
 
 if __name__ == "__main__":
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Get MixedBerryPie configuration values")
     parser.add_argument("--display-name", action="store_true", help="Get application display name")
     parser.add_argument("--app-name", action="store_true", help="Get application package name")
     parser.add_argument("--version", action="store_true", help="Get application version")
-    parser.add_argument("--exe-name", action="store_true", help="Get executable name (display_name + .exe)")
-    
+    parser.add_argument(
+        "--exe-name", action="store_true", help="Get executable name (display_name + .exe)"
+    )
+
     args = parser.parse_args()
-    
+
     if args.display_name:
         print(get_app_display_name())
     elif args.app_name:

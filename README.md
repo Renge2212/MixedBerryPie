@@ -36,13 +36,16 @@
 - [uv](https://github.com/astral-sh/uv) (推奨パッケージマネージャー)
 
 ### セットアップ・実行方法
-1. リポジトリをクローンし、依存関係を構築します:
+1. リポジトリをクローンします:
    ```bash
    git clone https://github.com/Renge2212/MixedBerryPie.git
    cd MixedBerryPie
-   uv sync
    ```
-2. アプリケーションを実行します:
+2. セットアップスクリプトを実行します (自動的に `uv sync` と `pre-commit` の設定が行われます):
+   ```powershell
+   ./scripts/setup.ps1
+   ```
+3. アプリケーションを実行します:
    ```bash
    uv run run.py
    ```
