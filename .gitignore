@@ -1,0 +1,83 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+
+# Linting
+.ruff_cache/
+
+# IDEs
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+desktop.ini
+
+# Application Data
+menu_config.json
+menu_config.json.backup
+logs/
+*.log
+
+# Translation backups
+*.xml.backup
+
+# Build outputs
+Output/
+build/
+dist/
+*.spec
+
+# Tools and Reports
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+ruff_out.json
+ruff_out.txt
+mypy_output.txt
+out.txt
+error.txt
+test_out.txt
+
+# Project specific
+*.py[cod]
+__pycache__/

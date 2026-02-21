@@ -1,0 +1,240 @@
+S607 Starting a process with a partial executable path
+  --> scripts\build.py:73:31
+   |
+71 |         # Run pyinstaller via 'uv run' to ensure environment is correct
+72 |         # RUF005: Use unpacking instead of concatenation
+73 |         subprocess.check_call(["uv", "run", *cmd])
+   |                               ^^^^^^^^^^^^^^^^^^^
+74 |         print("\n笨・Build successful! The executable can be found in the 'dist' folder.")
+75 |     except subprocess.CalledProcessError as e:
+   |
+
+S310 Audit URL open for permitted schemes. Allowing use of `file:` or custom schemes is often unexpected.
+  --> scripts\download_icons.py:31:14
+   |
+29 |             headers={"User-Agent": "PieMenu-Installer"}
+30 |         )
+31 |         with urllib.request.urlopen(req, context=ctx) as response:
+   |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+32 |             data = json.loads(response.read().decode())
+33 |             zip_url = data["zipball_url"]
+   |
+
+S310 Audit URL open for permitted schemes. Allowing use of `file:` or custom schemes is often unexpected.
+  --> scripts\download_icons.py:45:14
+   |
+43 |     print(f"Downloading {zip_url}...")
+44 |     try:
+45 |         with urllib.request.urlopen(zip_url, context=ctx) as response, open(zip_path, 'wb') as out_file:
+   |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+46 |             shutil.copyfileobj(response, out_file)
+47 |     except Exception as e:
+   |
+
+E701 Multiple statements on one line (colon)
+  --> scripts\download_icons.py:60:36
+   |
+58 |                 if member.endswith(".svg") and "/icons/" in member and "lucide" in member:
+59 |                     filename = os.path.basename(member)
+60 |                     if not filename: continue
+   |                                    ^
+61 |
+62 |                     target_path = os.path.join(ICONS_DIR, filename)
+   |
+
+S314 Using `xml` to parse untrusted data is known to be vulnerable to XML attacks; use `defusedxml` equivalents
+  --> scripts\merge_translations.py:18:23
+   |
+16 |     # Parse both files
+17 |     try:
+18 |         backup_tree = ET.parse(backup_file)
+   |                       ^^^^^^^^^^^^^^^^^^^^^
+19 |         backup_root = backup_tree.getroot()
+20 |     except ET.ParseError as e:
+   |
+
+S314 Using `xml` to parse untrusted data is known to be vulnerable to XML attacks; use `defusedxml` equivalents
+  --> scripts\merge_translations.py:26:16
+   |
+24 |         backup_root = None
+25 |
+26 |     new_tree = ET.parse(new_file)
+   |                ^^^^^^^^^^^^^^^^^^
+27 |     new_root = new_tree.getroot()
+   |
+
+E741 Ambiguous variable name: `l`
+  --> scripts\verify_welcome_dialog.py:27:27
+   |
+25 |     # Find all QLabels to check text
+26 |     labels = dialog.findChildren(QLabel)
+27 |     texts = [l.text() for l in labels]
+   |                           ^
+28 |
+29 |     expected_substrings = [
+   |
+
+SIM102 Use a single `if` statement instead of nested `if` statements
+   --> src\core\hook_manager.py:204:17
+    |
+202 |                   # Ignore events injected by our own application so we don't trap our own simulated keypresses
+203 |                   # We NO LONGER check (kb_struct.flags & 0x10) because left-hand devices use it too!
+204 | /                 if not is_our_event:
+205 | |                     # filter_func returns False to suppress the event
+206 | |                     if self.filter_func(w_param, kb_struct) is False:
+    | |_____________________________________________________________________^
+207 |                           # Return non-zero to prevent the system from passing the
+208 |                           # message to the rest of the hook chain or to the target window.
+    |
+help: Combine `if` statements using `and`
+
+W293 Blank line contains whitespace
+  --> src\core\win32_input.py:97:1
+   |
+95 |     """
+96 |     Send a pynput key using our custom injector with extra info.
+97 |     
+   | ^^^^
+98 |     Args:
+99 |         key: The Key or KeyCode object to send.
+   |
+help: Remove whitespace from blank line
+
+RUF059 Unpacked variable `settings` is never used
+  --> tests\test_config.py:13:15
+   |
+11 |     monkeypatch.setattr("src.core.config.CONFIG_DIR", str(tmp_path))
+12 |
+13 |     profiles, settings = load_config()
+   |               ^^^^^^^^
+14 |
+15 |     assert len(profiles) == 1
+   |
+help: Prefix it with an underscore or any other dummy variable pattern
+
+RUF059 Unpacked variable `settings` is never used
+  --> tests\test_config.py:37:15
+   |
+35 |     save_config(test_profiles, test_settings)
+36 |
+37 |     profiles, settings = load_config()
+   |               ^^^^^^^^
+38 |
+39 |     assert len(profiles) == 2
+   |
+help: Prefix it with an underscore or any other dummy variable pattern
+
+RUF059 Unpacked variable `settings` is never used
+  --> tests\test_config.py:80:15
+   |
+78 |         f.write("{invalid json content")
+79 |
+80 |     profiles, settings = load_config()
+   |               ^^^^^^^^
+81 |
+82 |     assert len(profiles) == 1
+   |
+help: Prefix it with an underscore or any other dummy variable pattern
+
+RUF059 Unpacked variable `press_cb` is never used
+   --> tests\test_hook_manager.py:126:10
+    |
+125 | def test_filter_suppresses_and_fires_press_callback():
+126 |     mgr, press_cb, _ = make_manager()
+    |          ^^^^^^^^
+127 |     with patch.object(mgr, "_start_listener"):
+128 |         mgr.start_hook(["ctrl+space"])
+    |
+help: Prefix it with an underscore or any other dummy variable pattern
+
+RUF059 Unpacked variable `press_cb` is never used
+   --> tests\test_hook_manager.py:141:10
+    |
+140 | def test_filter_no_suppress_wrong_modifiers():
+141 |     mgr, press_cb, _ = make_manager()
+    |          ^^^^^^^^
+142 |     with patch.object(mgr, "_start_listener"):
+143 |         mgr.start_hook(["ctrl+space"])
+    |
+help: Prefix it with an underscore or any other dummy variable pattern
+
+RUF059 Unpacked variable `release_cb` is never used
+   --> tests\test_hook_manager.py:157:13
+    |
+156 | def test_filter_suppresses_release_and_fires_release_callback():
+157 |     mgr, _, release_cb = make_manager(release_return=True)
+    |             ^^^^^^^^^^
+158 |     mgr._listener = MagicMock()
+159 |     mgr._active_suppressions["space"] = "ctrl+space"
+    |
+help: Prefix it with an underscore or any other dummy variable pattern
+
+RUF059 Unpacked variable `release_cb` is never used
+   --> tests\test_hook_manager.py:189:13
+    |
+188 | def test_handle_release_not_consumed_replays():
+189 |     mgr, _, release_cb = make_manager(release_return=False)
+    |             ^^^^^^^^^^
+190 |     with patch.object(mgr, "_replay_key") as mock_replay:
+191 |         mgr._handle_release("space", "space")
+    |
+help: Prefix it with an underscore or any other dummy variable pattern
+
+RUF059 Unpacked variable `press_cb` is never used
+   --> tests\test_hook_manager.py:223:10
+    |
+222 | def test_filter_ctrl_tab_vs_shift_tab():
+223 |     mgr, press_cb, _ = make_manager()
+    |          ^^^^^^^^
+224 |     with patch.object(mgr, "_start_listener"):
+225 |         mgr.start_hook(["ctrl+tab", "shift+tab"])
+    |
+help: Prefix it with an underscore or any other dummy variable pattern
+
+F841 Local variable `mock_thread` is assigned to but never used
+   --> tests\test_hook_manager.py:240:39
+    |
+238 |     # shift+tab
+239 |     mgr._held_modifiers = {"shift"}
+240 |     with patch("threading.Thread") as mock_thread:
+    |                                       ^^^^^^^^^^^
+241 |         mgr._win32_event_filter(WM_KEYDOWN, make_data(VK_TAB))
+242 |     assert mgr._active_suppressions.get("tab") == "shift+tab"
+    |
+help: Remove assignment to unused variable `mock_thread`
+
+N806 Variable `lParam` in function should be lowercase
+   --> tests\test_hook_manager.py:264:5
+    |
+262 |     kb_struct.dwExtraInfo = MAGIC_EXTRA_INFO
+263 |
+264 |     lParam = ctypes.cast(ctypes.pointer(kb_struct), ctypes.c_void_p).value
+    |     ^^^^^^
+265 |
+266 |     # We must patch CallNextHookEx so we don't actually call the real Windows API
+    |
+
+N806 Variable `lParam` in function should be lowercase
+   --> tests\test_hook_manager.py:292:5
+    |
+290 |     kb_struct.flags = 0
+291 |
+292 |     lParam = ctypes.cast(ctypes.pointer(kb_struct), ctypes.c_void_p).value
+    |     ^^^^^^
+293 |
+294 |     with patch('ctypes.windll.user32.CallNextHookEx') as mock_callnext:
+    |
+
+N806 Variable `lParam` in function should be lowercase
+   --> tests\test_hook_manager.py:318:5
+    |
+316 |     kb_struct.flags = 0
+317 |
+318 |     lParam = ctypes.cast(ctypes.pointer(kb_struct), ctypes.c_void_p).value
+    |     ^^^^^^
+319 |
+320 |     with patch('ctypes.windll.user32.CallNextHookEx', return_value=456) as mock_callnext:
+    |
+
+Found 21 errors.
+No fixes available (10 hidden fixes can be enabled with the `--unsafe-fixes` option).
