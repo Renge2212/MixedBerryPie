@@ -8,3 +8,21 @@ repos:
         args: [ --fix ]
       # Run the formatter.
       - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.15.0
+    hooks:
+      - id: mypy
+        args: [src]
+        pass_filenames: false
+        additional_dependencies: [pyqt6, keyboard]
+
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: uv run pytest
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

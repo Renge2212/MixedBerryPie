@@ -13,7 +13,7 @@ import sys as _sys
 import threading
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import Any, ClassVar
 
 from pynput import keyboard as pynput_keyboard
 
@@ -130,7 +130,7 @@ if _sys.platform == "win32":
     HC_ACTION = 0
 
     class KBDLLHOOKSTRUCT(ctypes.Structure):
-        _fields_ = [
+        _fields_: ClassVar[list[tuple[str, Any]]] = [
             ("vkCode", wintypes.DWORD),
             ("scanCode", wintypes.DWORD),
             ("flags", wintypes.DWORD),

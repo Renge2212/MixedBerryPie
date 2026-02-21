@@ -105,3 +105,7 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "PyQt6.*"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pynput.*"
+ignore_missing_imports = true

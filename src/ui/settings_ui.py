@@ -20,6 +20,7 @@ from PyQt6.QtGui import (
 )
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import (
+    QAbstractItemView,
     QApplication,
     QCheckBox,
     QColorDialog,
@@ -526,18 +527,22 @@ class FlowLayout(QLayout):
         size += QSize(m.left() + m.right(), m.top() + m.bottom())
         return size
 
-    def smartSpacing(self, pm):
+    def smartSpacing(self, pm: QStyle.PixelMetric) -> int:
         parent = self.parent()
         if parent is None:
             return -1
-        elif parent.isWidgetType():
-            return parent.style().pixelMetric(pm, None, parent)
-        else:
+        if isinstance(parent, QWidget):
+            style = parent.style()
+            if style:
+                return style.pixelMetric(pm, None, parent)
+        if isinstance(parent, QLayout):
             return parent.spacing()
+        return -1
 
     def _doLayout(self, rect, test_only):
-        left, top, right, bottom = self.getContentsMargins()
-        effective_rect = rect.adjusted(+left, +top, -right, -bottom)
+        m = self.contentsMargins()
+        left, top, right, bottom = m.left(), m.top(), m.right(), m.bottom()
+        effective_rect = rect.adjusted(left, top, -right, -bottom)
         x = effective_rect.x()
         y = effective_rect.y()
         line_height = 0
@@ -545,11 +550,12 @@ class FlowLayout(QLayout):
         for item in self._items:
             widget = item.widget()
             space_x = self.horizontalSpacing()
-            if space_x == -1:
-                space_x = widget.style().pixelMetric(QStyle.PixelMetric.PM_LayoutHorizontalSpacing)
+            style = widget.style()
+            if space_x == -1 and style:
+                space_x = style.pixelMetric(QStyle.PixelMetric.PM_LayoutHorizontalSpacing)
             space_y = self.verticalSpacing()
-            if space_y == -1:
-                space_y = widget.style().pixelMetric(QStyle.PixelMetric.PM_LayoutVerticalSpacing)
+            if space_y == -1 and style:
+                space_y = style.pixelMetric(QStyle.PixelMetric.PM_LayoutVerticalSpacing)
 
             next_x = x + item.sizeHint().width() + space_x
             if next_x - space_x > effective_rect.right() and line_height > 0:
@@ -647,10 +653,12 @@ class AppPickerDialog(QDialog):
         self.table = QTreeWidget()
         self.table.setColumnCount(2)
         self.table.setHeaderLabels([self.tr("Process"), self.tr("Window Title")])
-        self.table.header().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.table.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self.table.setSelectionMode(QTreeWidget.SelectionMode.SingleSelection)
-        self.table.setEditTriggers(QTreeWidget.EditTrigger.NoEditTriggers)
+        header = self.table.header()
+        if header:
+            header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+            header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setRootIsDecorated(False)
         self.table.setIndentation(0)
         self.table.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # Remove focus rectangle
