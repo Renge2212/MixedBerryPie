@@ -8,8 +8,8 @@ import time
 import webbrowser
 from typing import Any, cast
 
-from PyQt6.QtCore import QObject, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import QObject, Qt, QTimer, QUrl, pyqtSignal
+from PyQt6.QtGui import QDesktopServices, QIcon
 from PyQt6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 
 from src.core import config, i18n
@@ -221,7 +221,7 @@ class MixedBerryPieApp(QObject):
         """Open the logs directory in file explorer."""
         app_logger.info(f"Opening logs directory: {LOGS_DIR}")
         if os.path.exists(LOGS_DIR):
-            os.startfile(LOGS_DIR)
+            QDesktopServices.openUrl(QUrl.fromLocalFile(os.fspath(LOGS_DIR)))
         else:
             app_logger.warning(f"Logs directory does not exist: {LOGS_DIR}")
             QMessageBox.warning(None, "Error", self.tr("Logs directory not found."))
