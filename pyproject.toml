@@ -25,6 +25,7 @@ dev = [
     "pre-commit>=3.0.0",
     "Pillow>=10.2.0",
     "types-Pillow>=10.2.0.20240213",
+    "pip-audit>=2.7.0",
 ]
 
 [tool.ruff]

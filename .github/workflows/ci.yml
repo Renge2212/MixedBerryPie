@@ -27,6 +27,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras --dev
 
+      - name: Dependency Audit
+        run: uv run pip-audit
+
       - name: Ruff – format check
         run: uv run ruff format --check .
 
