@@ -46,7 +46,9 @@ New-Item -ItemType Directory -Path (Join-Path $AppFilesDir "Assets") -Force | Ou
 # Copy files
 Copy-Item "$OutputDir\$AppName.exe" "$AppFilesDir\"
 Copy-Item -Recurse "resources" "$AppFilesDir\"
-Copy-Item "package\assets\*" "$AppFilesDir\Assets\"
+if (Test-Path "package\assets") {
+    Copy-Item "package\assets\*" "$AppFilesDir\Assets\" -ErrorAction SilentlyContinue
+}
 Copy-Item "package\AppxManifest.xml" "$AppFilesDir\"
 
 # 3. Create MSIX Package

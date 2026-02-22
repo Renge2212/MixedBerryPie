@@ -58,6 +58,11 @@ jobs:
           # then updates AppxManifest.xml and MixedBerryPie.iss (build-time only, no commit).
           uv run python scripts/update_version.py ${{ steps.version.outputs.VERSION }}
 
+      - name: Generate Icons & Assets
+        run: uv run python scripts/convert_icon.py
+        env:
+          QT_QPA_PLATFORM: offscreen
+
       # ── Build ───────────────────────────────────────────────────────────
       - name: Build Executable
         run: uv run python scripts/build.py
