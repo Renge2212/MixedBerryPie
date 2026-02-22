@@ -34,8 +34,8 @@ LOG_LEVEL_WARNING = logging.WARNING
 LOG_LEVEL_ERROR = logging.ERROR
 
 # File rotation settings
-MAX_LOG_SIZE_MB = 5
-BACKUP_COUNT = 5
+MAX_LOG_SIZE_MB = 1
+BACKUP_COUNT = 3
 
 
 def setup_logger(name: str = "piemenu", level: int = logging.DEBUG) -> logging.Logger:
