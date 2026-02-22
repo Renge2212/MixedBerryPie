@@ -4,6 +4,10 @@
 
 # MixedBerryPie
 
+<p align="center">
+  <video src="https://github.com/user-attachments/assets/e904183c-4f5b-4a8a-9229-abaa91c56b64" width="100%" controls autoplay loop muted></video>
+</p>
+
 キーボードショートカットを素早く呼び出し、生産性を向上させるための、高パフォーマンスでカスタマイズ可能なWindows用パイメニューです。
 主にイラスト制作やデジタルアートのワークフローにおいて、ペンタブレットを持ったまま片手でショートカットを操作することを想定して設計されています。
 
