@@ -3,7 +3,13 @@
 
 $PublisherID = "CN=AC64A0E6-FC09-4DAC-A8B8-13B770643707"
 $CertFile = "package\LocalTestCert.pfx"
-$MSIXPath = "dist\MixedBerryPie.msix"
+
+# Find the latest MSIX file in the dist folder
+$MSIXPath = Get-ChildItem "dist\MixedBerryPie_v*.msix" | Sort-Object LastWriteTime -Descending | Select-Object -ExpandProperty FullName -First 1
+
+if (-not $MSIXPath) {
+    $MSIXPath = "dist\MixedBerryPie.msix"
+}
 
 # 1. Find SignTool
 $SignTool = "signtool.exe"
