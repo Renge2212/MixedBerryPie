@@ -61,10 +61,61 @@ def convert_svg_to_ico(svg_path, ico_path, png_path):
     print(f"Saved optimized high-quality {ico_path} with sizes: {target_sizes}")
 
 
+def generate_msix_assets(svg_path, assets_dir):
+    """Generates the required icon assets for MSIX packaging."""
+    os.makedirs(assets_dir, exist_ok=True)
+    _app = QApplication.instance() or QApplication(sys.argv)
+
+    renderer = QSvgRenderer(svg_path)
+    if not renderer.isValid():
+        print("Invalid SVG file")
+        return
+
+    # MSIX required assets (Asset Name, Width, Height)
+    msix_sizes = [
+        ("Square44x44Logo", 44, 44),
+        ("Square150x150Logo", 150, 150),
+        ("Wide310x150Logo", 310, 150),
+        ("StoreLogo", 50, 50),
+        ("SplashScreen", 620, 300),
+    ]
+
+    for name, w, h in msix_sizes:
+        image = QImage(w, h, QImage.Format.Format_ARGB32)
+        image.fill(0)  # Transparent
+
+        painter = QPainter(image)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # For non-square icons, we might want to center the icon or fit it
+        if w == h:
+            renderer.render(painter)
+        else:
+            # Fit icon in the center (assuming it's square-ish)
+            # Find the largest square that fits in the center
+            side = min(w, h)
+            x_offset = (w - side) // 2
+            y_offset = (h - side) // 2
+            from PyQt6.QtCore import QRectF
+
+            renderer.render(painter, QRectF(x_offset, y_offset, side, side))
+
+        painter.end()
+
+        out_path = os.path.join(assets_dir, f"{name}.png")
+        image.save(out_path, "PNG")
+        print(f"Generated MSIX asset: {out_path} ({w}x{h})")
+
+
 if __name__ == "__main__":
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     svg_in = os.path.join(base_dir, "resources", "app_icon.svg")
     png_out = os.path.join(base_dir, "resources", "app_icon.png")
     ico_out = os.path.join(base_dir, "resources", "app_icon.ico")
+    assets_dir = os.path.join(base_dir, "package", "assets")
 
+    # Generate standard app icons
     convert_svg_to_ico(svg_in, ico_out, png_out)
+
+    # Generate MSIX assets
+    generate_msix_assets(svg_in, assets_dir)
