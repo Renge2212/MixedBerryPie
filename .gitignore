@@ -81,3 +81,13 @@ test_out.txt
 # Project specific
 *.py[cod]
 __pycache__/
+
+# MSIX Packaging
+package/app_files/
+package/assets/*.png
+!package/assets/.gitkeep
+package/*.msix
+
+# Local test certificate (do not commit)
+package/LocalTestCert.pfx
+package/*.pfx
