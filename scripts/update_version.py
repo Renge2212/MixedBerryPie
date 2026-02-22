@@ -39,7 +39,18 @@ def update_appx_manifest(version: str) -> None:
     manifest_path = PROJECT_ROOT / "package" / "AppxManifest.xml"
     msix_version = f"{version}.0"  # MSIX requires 4 parts
     content = manifest_path.read_text(encoding="utf-8")
-    updated = re.sub(r'Version="[^"]*"', f'Version="{msix_version}"', content)
+    # Only replace Version within the <Identity ... /> tag
+    updated = re.sub(
+        r'(<Identity\s+[^>]*?Version=")([^"]*)(")',
+        rf"\g<1>{msix_version}\g<2>",
+        content,
+        flags=re.DOTALL,
+    )
+    # Wait, the above ref \g<2> would keep the old version suffix if I am not careful.
+    # Actually I want to replace the whole content of Version="...".
+    updated = re.sub(
+        r'(<Identity\s+[^>]*?Version=")[^"]*(")', rf"\g<1>{msix_version}\g<2>", content
+    )
     manifest_path.write_text(updated, encoding="utf-8")
     print(f"[OK] AppxManifest.xml -> Version={msix_version}")
 
