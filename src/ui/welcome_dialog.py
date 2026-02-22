@@ -5,7 +5,14 @@ with a modern, visually appealing design.
 """
 
 from PyQt6.QtCore import QEvent, Qt
-from PyQt6.QtWidgets import QDialog, QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
+from PyQt6.QtWidgets import (
+    QDialog,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QVBoxLayout,
+)
 
 from src.core.logger import get_logger
 
@@ -128,11 +135,15 @@ class WelcomeDialog(QDialog):
                 background-color: #005a9e;
             }
         """)
-        self.close_btn.clicked.connect(self.accept)
+        self.close_btn.clicked.connect(self._on_accept)
 
         btn_layout.addWidget(self.close_btn)
         btn_layout.addStretch()
         frame_layout.addLayout(btn_layout)
+
+    def _on_accept(self) -> None:
+        """Handle completion of the welcome dialog."""
+        self.accept()
 
     def _add_step(self, layout: QVBoxLayout, title_text: str, desc_text: str) -> None:
         """Add a step to the welcome guide.
