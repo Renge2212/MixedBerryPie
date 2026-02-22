@@ -26,6 +26,8 @@ dev = [
     "Pillow>=10.2.0",
     "types-Pillow>=10.2.0.20240213",
     "pip-audit>=2.7.0",
+    "defusedxml>=0.7.1",
+    "types-defusedxml>=0.7.0.20250822",
 ]
 
 [tool.ruff]
@@ -115,4 +117,8 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "pynput.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "defusedxml.*"
 ignore_missing_imports = true

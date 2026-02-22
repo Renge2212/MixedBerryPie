@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 from src.core import config, i18n
 from src.core.config import MenuProfile
 from src.core.hook_manager import HookManager, _parse_key
-from src.core.logger import get_logger
+from src.core.logger import LOGS_DIR, get_logger
 from src.core.utils import get_resource_path
 from src.core.version import __version__
 from src.core.win32_input import get_active_window_info, send_pynput_key_safely
@@ -171,6 +171,10 @@ class MixedBerryPieApp(QObject):
         if help_action:
             help_action.triggered.connect(self.open_help)
 
+        logs_action = menu.addAction(self.tr("View Logs"))
+        if logs_action:
+            logs_action.triggered.connect(self.open_logs)
+
         menu.addSeparator()
 
         exit_action = menu.addAction(self.tr("Exit MixedBerryPie"))
@@ -212,6 +216,15 @@ class MixedBerryPieApp(QObject):
         app_logger.info("Opening help dialog")
         help_dialog = HelpDialog(None)
         help_dialog.exec()
+
+    def open_logs(self) -> None:
+        """Open the logs directory in file explorer."""
+        app_logger.info(f"Opening logs directory: {LOGS_DIR}")
+        if os.path.exists(LOGS_DIR):
+            os.startfile(LOGS_DIR)
+        else:
+            app_logger.warning(f"Logs directory does not exist: {LOGS_DIR}")
+            QMessageBox.warning(None, "Error", self.tr("Logs directory not found."))
 
     def update_hooks(self) -> None:
         """Re-calculate and start hooks based on current profiles."""

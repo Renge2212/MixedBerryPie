@@ -327,6 +327,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "defusedxml" },
     { name = "mypy" },
     { name = "pillow" },
     { name = "pip-audit" },
@@ -335,6 +336,7 @@ dev = [
     { name = "pyside6" },
     { name = "pytest" },
     { name = "ruff" },
+    { name = "types-defusedxml" },
     { name = "types-pillow" },
     { name = "types-pynput" },
 ]
@@ -348,6 +350,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "defusedxml", specifier = ">=0.7.1" },
     { name = "mypy", specifier = ">=1.8.0" },
     { name = "pillow", specifier = ">=10.2.0" },
     { name = "pip-audit", specifier = ">=2.7.0" },
@@ -356,6 +359,7 @@ dev = [
     { name = "pyside6", specifier = ">=6.10.2" },
     { name = "pytest", specifier = ">=7.0.0" },
     { name = "ruff", specifier = ">=0.1.0" },
+    { name = "types-defusedxml", specifier = ">=0.7.0.20250822" },
     { name = "types-pillow", specifier = ">=10.2.0.20240213" },
     { name = "types-pynput", specifier = ">=1.8.1.20250809" },
 ]
@@ -3756,6 +3760,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/19/75/241269d1da26b624c0d5e110e8149093c759b7a286138f4efd61a60e75fe/tomli_w-1.2.0.tar.gz", hash = "sha256:2dd14fac5a47c27be9cd4c976af5a12d87fb1f0b4512f81d69cce3b35ae25021", size = 7184, upload-time = "2025-01-15T12:07:24.262Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c7/18/c86eb8e0202e32dd3df50d43d7ff9854f8e0603945ff398974c1d91ac1ef/tomli_w-1.2.0-py3-none-any.whl", hash = "sha256:188306098d013b691fcadc011abd66727d3c414c571bb01b1a174ba8c983cf90", size = 6675, upload-time = "2025-01-15T12:07:22.074Z" },
+]
+
+[[package]]
+name = "types-defusedxml"
+version = "0.7.0.20250822"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/7d/4a/5b997ae87bf301d1796f72637baa4e0e10d7db17704a8a71878a9f77f0c0/types_defusedxml-0.7.0.20250822.tar.gz", hash = "sha256:ba6c395105f800c973bba8a25e41b215483e55ec79c8ca82b6fe90ba0bc3f8b2", size = 10590, upload-time = "2025-08-22T03:02:59.547Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/13/73/8a36998cee9d7c9702ed64a31f0866c7f192ecffc22771d44dbcc7878f18/types_defusedxml-0.7.0.20250822-py3-none-any.whl", hash = "sha256:5ee219f8a9a79c184773599ad216123aedc62a969533ec36737ec98601f20dcf", size = 13430, upload-time = "2025-08-22T03:02:58.466Z" },
 ]
 
 [[package]]

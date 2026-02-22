@@ -1,0 +1,20 @@
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+end_of_line = lf
+
+[*.{py,pyi}]
+indent_size = 4
+
+[resources/translations/*.{xml,ts}]
+indent_size = 4
+# Disable some auto-formatting behaviors for XML to prevent Qt Linguist conflicts
+trim_trailing_whitespace = false
+
+[*.{yml,yaml}]
+indent_size = 2

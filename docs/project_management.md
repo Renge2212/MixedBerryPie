@@ -80,6 +80,10 @@ uv run pytest tests/
 # 4. Lint / 型チェック
 uv run ruff check .
 uv run mypy .
+
+# 5. 翻訳の更新と検証
+uv run python scripts/update_translations.py
+uv run python scripts/check_translations.py
 ```
 
 ### コミット規約（Conventional Commits）
@@ -210,7 +214,9 @@ MixedBerryPie/
 │   ├── update_version.py   # バージョン同期（CI用）
 │   ├── package_msix.ps1    # MSIX パッケージ作成
 │   ├── sign_msix_local.ps1 # ローカルテスト用署名
-│   └── install_cert.ps1    # ローカル証明書インストール（初回のみ）
+│   ├── install_cert.ps1    # ローカル証明書インストール（初回のみ）
+│   ├── update_translations.py # 翻訳の抽出・同期
+│   └── check_translations.py  # 翻訳漏れの検証
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml          # 継続的インテグレーション

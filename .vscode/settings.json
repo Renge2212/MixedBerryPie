@@ -6,6 +6,13 @@
         "**/.mypy_cache": true,
         "**/.ruff_cache": true
     },
+    "files.associations": {
+        "**/resources/translations/*.ts": "xml"
+    },
+    "[xml]": {
+        "editor.formatOnSave": false,
+        "editor.defaultFormatter": null
+    },
     "[python]": {
         "editor.formatOnSave": true,
         "editor.codeActionsOnSave": {
