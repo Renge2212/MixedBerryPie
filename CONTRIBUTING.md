@@ -2,6 +2,16 @@
 
 Thank you for your interest in contributing to MixedBerryPie! We welcome contributions from everyone.
 
+## ⚠️ Maintenance Policy
+
+This is a **personal project**. While Pull Requests and Issues are welcome, please note the following:
+
+- **Limited Maintenance**: Active updates and immediate responses to issues are not guaranteed. I maintain this project in my spare time.
+- **Support**: High-priority bugs may be addressed, but feature requests might take a long time or stay open indefinitely.
+- **Forking**: If you need immediate updates, new features, or want to take the project in a different direction, you are encouraged to **fork the repository** and continue development in your own repository.
+
+---
+
 ## 🧪 Testing Policy
 
 **Run tests before every commit.**
