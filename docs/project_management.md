@@ -3,7 +3,8 @@
 ## 目次
 
 1. [バージョン管理ポリシー](#バージョン管理ポリシー)
-2. [開発フロー](#開発フロー)
+2. [ブランチ戦略](#ブランチ戦略)
+3. [開発フロー](#開発フロー)
 3. [リリース手順](#リリース手順)
 4. [ローカルテスト（MSIXインストール）](#ローカルテストmsixインストール)
 5. [CI/CD 概要](#cicd-概要)
@@ -26,7 +27,43 @@ version = "1.2.0"  # ← ここだけを手動で変更する
 
 ---
 
-## 開発フロー
+## ブランチ戦略（GitHub Flow）
+
+```
+main
+  ↑ PR マージのみ（直接 push 禁止）
+  ├── feature/add-opacity-slider
+  ├── fix/menu-crash-on-win11
+  └── ...
+```
+
+### ブランチ命名規則
+
+| プレフィックス | 用途 | 例 |
+|-------------|------|-----|
+| `feature/` | 新機能 | `feature/add-opacity-slider` |
+| `fix/` | バグ修正 | `fix/menu-crash-on-win11` |
+| `docs/` | ドキュメントのみ | `docs/update-readme` |
+| `refactor/` | リファクタリング | `refactor/config-module` |
+| `ci/` | CI/CD 変更 | `ci/add-msix-build` |
+
+### PR の流れ
+
+```
+1. main から feature/xxx ブランチを切る
+2. 開発・コミット
+3. GitHub で main への PR を作成
+4. CI（Lint・型チェック・テスト）が自動実行される
+5. レビュー・修正
+6. main にマージ → feature/xxx ブランチは削除
+```
+
+> [!IMPORTANT]
+> `main` への直接 push は禁止です。GitHub の Branch Protection Rules で設定してください。
+> （Settings → Branches → main → Require pull request before merging）
+
+---
+
 
 ### 通常の開発
 
