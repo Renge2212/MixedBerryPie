@@ -74,9 +74,11 @@ def generate_msix_assets(svg_path, assets_dir):
     # MSIX required assets (Asset Name, Width, Height)
     msix_sizes = [
         ("Square44x44Logo", 44, 44),
+        ("Square71x71Logo", 71, 71),
         ("Square150x150Logo", 150, 150),
         ("Wide310x150Logo", 310, 150),
         ("StoreLogo", 50, 50),
+        ("StoreDisplayLogo", 300, 300),
         ("SplashScreen", 620, 300),
     ]
 
