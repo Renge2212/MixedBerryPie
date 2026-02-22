@@ -13,6 +13,9 @@ def check_translations(ts_file: str) -> bool:
     try:
         tree = ElementTree.parse(ts_file)
         root = tree.getroot()
+        if root is None:
+            print(f"Error: Could not find root element in {ts_file}")
+            return False
     except Exception as e:
         print(f"Error parsing {ts_file}: {e}")
         return False
