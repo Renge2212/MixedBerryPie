@@ -2,7 +2,7 @@
 import os
 import sys
 
-import defusedxml.ElementTree as ElementTree  # type: ignore
+import defusedxml.ElementTree as ElementTree
 
 
 def check_translations(ts_file: str) -> bool:

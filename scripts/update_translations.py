@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import re
+import shutil
 import subprocess
 import sys
 
@@ -67,6 +68,12 @@ def main() -> None:
     if not os.path.exists(lupdate_path):
         lupdate_path = "pyside6-lupdate"
 
+    # Resolve to absolute path to satisfy Ruff S606
+    resolved_lupdate = shutil.which(lupdate_path)
+    if not resolved_lupdate:
+        print(f"Error: lupdate not found (tried {lupdate_path})")
+        sys.exit(1)
+
     print(f"Finding Python files in {project_root}/src...")
     py_files = []
     for root, _, files in os.walk(os.path.join(project_root, "src")):
@@ -81,7 +88,7 @@ def main() -> None:
     print(f"Running lupdate on {len(py_files)} files...")
     try:
         # Pass all files at once
-        cmd = [lupdate_path, *py_files, "-ts", ts_file]
+        cmd = [resolved_lupdate, *py_files, "-ts", ts_file]
         subprocess.run(cmd, check=True, cwd=project_root)
         print("Successfully updated .ts file from source strings.")
     except Exception as e:
