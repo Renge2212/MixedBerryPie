@@ -13,6 +13,20 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 全履歴取得してタグの所属ブランチを確認可能にする
+
+      - name: Verify tag is on main
+        shell: pwsh
+        run: |
+          # 取得した全履歴から、現在のコミット(GitHubタグ)を含むリモートブランチを確認
+          $branches = git branch -r --contains ${{ github.sha }}
+          $isOnMain = $branches | Where-Object { $_ -match "origin/main" }
+          if (-not $isOnMain) {
+            Write-Error "Tag must be on 'main' branch to trigger a release. Tagged commit found in branches: $branches"
+            exit 1
+          }
+          Write-Host "[OK] Tag is on main branch."
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
