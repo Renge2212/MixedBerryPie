@@ -41,7 +41,7 @@ def update_appx_manifest(version: str) -> None:
     content = manifest_path.read_text(encoding="utf-8")
     updated = re.sub(r'Version="[^"]*"', f'Version="{msix_version}"', content)
     manifest_path.write_text(updated, encoding="utf-8")
-    print(f"[OK] AppxManifest.xml → Version={msix_version}")
+    print(f"[OK] AppxManifest.xml -> Version={msix_version}")
 
 
 def update_inno_setup(version: str) -> None:
@@ -57,7 +57,7 @@ def update_inno_setup(version: str) -> None:
         content,
     )
     iss_path.write_text(updated, encoding="utf-8")
-    print(f"[OK] MixedBerryPie.iss → MyAppVersion={version}")
+    print(f"[OK] MixedBerryPie.iss -> MyAppVersion={version}")
 
 
 def main() -> None:
