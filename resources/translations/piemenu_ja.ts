@@ -62,129 +62,124 @@
             <translation>閉じる</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="101"/>
             <source>How to Use</source>
             <translation>使い方</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="102"/>
-            <source>Press Trigger Key:</source>
-            <translation>トリガーキーを押す:</translation>
+            <source>Press and hold your trigger key.</source>
+            <translation>トリガーキーを押し続けます。</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="103"/>
-            <source>Pie menu will appear around the mouse cursor position</source>
-            <translation>マウスカーソルの周りにパイメニューが表示されます</translation>
+            <source>Move mouse towards the item you want to select.</source>
+            <translation>実行したい項目の方向にマウスを動かします。</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="104"/>
-            <source>Move mouse to select an item (highlighted)</source>
-            <translation>マウスを動かしてアイテムを選択 (ハイライト)</translation>
+            <source>Release the key to execute the action.</source>
+            <translation>キーを離すとアクションが実行されます。</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="105"/>
-            <source>Release the trigger key to execute the selected action</source>
-            <translation>トリガーキーを離すと選択したアクションが実行されます</translation>
+            <source>If you release without moving, the original key might be replayed (see settings).</source>
+            <translation>動かさずに離すと、元のキー入力が再現される場合があります（設定参照）。</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="107"/>
-            <source>Release without selection to replay original key (depending on settings)</source>
-            <translation>選択せずに離すと元のキー入力を再現します (設定による)</translation>
+            <source>Menu Profiles</source>
+            <translation>メニュープロファイル</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="109"/>
-            <source>Configured Shortcuts</source>
-            <translation>設定済みショートカット</translation>
+            <source>You can define multiple profiles with different trigger keys and target applications.</source>
+            <translation>異なるトリガーキーや対象アプリケーションを持つ複数のプロファイルを定義できます。</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="110"/>
-            <source>Showing default profile</source>
-            <translation>デフォルトプロファイルを表示中</translation>
+            <source>Global</source>
+            <translation>グローバル</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="111"/>
+            <source>Default Profile Items</source>
+            <translation>デフォルトプロファイルの項目</translation>
+        </message>
+        <message>
             <source>Label</source>
             <translation>ラベル</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="112"/>
             <source>Action</source>
             <translation>アクション</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="113"/>
             <source>Color</source>
             <translation>色</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="115"/>
-            <source>Current Settings</source>
-            <translation>現在の設定</translation>
+            <source>Icons &amp; Customization</source>
+            <translation>アイコンとカスタマイズ</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="116"/>
-            <source>Trigger Key:</source>
-            <translation>トリガーキー:</translation>
+            <source>Presets</source>
+            <translation>プリセット</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="117"/>
-            <source>Action Delay:</source>
-            <translation>アクション遅延:</translation>
+            <source>Choose from 1000+ curated icons sorted by categories.</source>
+            <translation>カテゴリ分けされた1000個以上の厳選されたアイコンから選択できます。</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="118"/>
-            <source>Menu Size:</source>
-            <translation>メニューサイズ:</translation>
+            <source>History</source>
+            <translation>履歴</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="120"/>
-            <source>Tips</source>
-            <translation>ヒント</translation>
+            <source>Recently used external images are saved in the 'Recent' category.</source>
+            <translation>最近使用した外部画像は「Recent」カテゴリに保存されます。</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="121"/>
-            <source>Right-click tray icon to open settings</source>
-            <translation>トレイアイコンを右クリックして設定を開く</translation>
+            <source>Dark Grid</source>
+            <translation>ダークグリッド</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="122"/>
-            <source>Customize colors, labels, and shortcuts in settings</source>
-            <translation>設定画面で色、ラベル、ショートカットをカスタマイズ</translation>
+            <source>The icon picker uses a dark background so white icons are always visible.</source>
+            <translation>アイコンピッカーは暗い背景を使用しているため、白いアイコンも常に見やすくなっています。</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="123"/>
-            <source>MixedBerryPie works in all applications</source>
-            <translation>MixedBerryPieはすべてのアプリケーションで動作します</translation>
+            <source>Global Settings</source>
+            <translation>グローバル設定</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="124"/>
-            <source>Log file location:</source>
-            <translation>ログファイルの場所:</translation>
+            <source>Action Delay</source>
+            <translation>アクション遅延</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="125"/>
-            <source>(For troubleshooting)</source>
-            <translation>(トラブルシューティング用)</translation>
+            <source>Menu Opacity</source>
+            <translation>メニューの不透明度</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="127"/>
+            <source>Auto Scale</source>
+            <translation>自動スケール</translation>
+        </message>
+        <message>
+            <source>Tips &amp; Tricks</source>
+            <translation>ヒントと便利な使い方</translation>
+        </message>
+        <message>
+            <source>Right-click the system tray icon to access settings.</source>
+            <translation>システムトレイのアイコンを右クリックして設定にアクセスできます。</translation>
+        </message>
+        <message>
+            <source>You can export/import settings as JSON files for backup.</source>
+            <translation>設定をJSONファイルとしてエクスポート/インポートしてバックアップできます。</translation>
+        </message>
+        <message>
+            <source>Use 'Target Apps' to limit a profile to specific software (e.g., Photoshop only).</source>
+            <translation>「対象アプリ」を使用して、プロファイルを特定のソフトウェア（例: Photoshopのみ）に限定できます。</translation>
+        </message>
+        <message>
             <source>Troubleshooting</source>
             <translation>トラブルシューティング</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="129"/>
-            <source>If actions don&apos;t execute, try increasing the action delay in settings</source>
-            <translation>アクションが実行されない場合は、設定でアクション遅延を増やしてください</translation>
+            <source>If shortcuts don't trigger, check if another app is using the same hotkey.</source>
+            <translation>ショートカットが反応しない場合は、他のアプリが同じホットキーを使用していないか確認してください。</translation>
         </message>
         <message>
-            <location filename="../../src/ui/help_dialog.py" line="132"/>
-            <source>If trigger key doesn&apos;t respond, check for conflicts with other apps</source>
-            <translation>トリガーキーが反応しない場合は、他のアプリとの競合を確認してください</translation>
-        </message>
-        <message>
-            <location filename="../../src/ui/help_dialog.py" line="134"/>
-            <source>Check the log file for detailed errors</source>
-            <translation>詳細なエラーはログファイルを確認してください</translation>
+            <source>Try increasing 'Key Input Interval' if some apps miss keystrokes.</source>
+            <translation>一部のアプリでキー入力を取りこぼす場合は、「キー入力間隔」を増やしてみてください。</translation>
         </message>
     </context>
     <context>
@@ -200,15 +195,86 @@
             <translation>アイコンを検索...</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="353"/>
             <source>Search:</source>
             <translation>検索:</translation>
+        </message>
+        <message>
+            <source>Filter by name...</source>
+            <translation>名前で検索...</translation>
         </message>
         <message>
             <location filename="../../src/ui/settings_ui.py" line="374"/>
             <location filename="../../src/ui/settings_ui.py" line="422"/>
             <source>{} icons loaded</source>
             <translation>{}個のアイコンを読み込みました</translation>
+        </message>
+        <message>
+            <source>All</source>
+            <translation>すべて</translation>
+        </message>
+        <message>
+            <source>User Icons</source>
+            <translation>ユーザーアイコン</translation>
+        </message>
+        <message>
+            <source>Category:</source>
+            <translation>カテゴリー:</translation>
+        </message>
+        <message>
+            <source>Drawing Tools</source>
+            <translation>描画ツール</translation>
+        </message>
+        <message>
+            <source>Shapes &amp; Geometry</source>
+            <translation>図形とジオメトリ</translation>
+        </message>
+        <message>
+            <source>Layers &amp; Canvas</source>
+            <translation>レイヤーとキャンバス</translation>
+        </message>
+        <message>
+            <source>Transform</source>
+            <translation>変形</translation>
+        </message>
+        <message>
+            <source>Selection &amp; Pointer</source>
+            <translation>選択とポインター</translation>
+        </message>
+        <message>
+            <source>View &amp; Zoom</source>
+            <translation>表示とズーム</translation>
+        </message>
+        <message>
+            <source>Colors &amp; Palette</source>
+            <translation>色とパレット</translation>
+        </message>
+        <message>
+            <source>Arrows &amp; Direction</source>
+            <translation>矢印と方向</translation>
+        </message>
+        <message>
+            <source>Text &amp; Typography</source>
+            <translation>テキストとタイポグラフィ</translation>
+        </message>
+        <message>
+            <source>Edit &amp; History</source>
+            <translation>編集と履歴</translation>
+        </message>
+        <message>
+            <source>Files &amp; Folders</source>
+            <translation>ファイルとフォルダ</translation>
+        </message>
+        <message>
+            <source>Filters &amp; Effects</source>
+            <translation>フィルタとエフェクト</translation>
+        </message>
+        <message>
+            <source>UI Controls</source>
+            <translation>UIコントロール</translation>
+        </message>
+        <message>
+            <source>Symbols &amp; Icons</source>
+            <translation>シンボルとアイコン</translation>
         </message>
         <message>
             <location filename="../../src/ui/settings_ui.py" line="378"/>
@@ -231,9 +297,28 @@
             <translation>{}個のアイコンを読み込みました...</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="446"/>
             <source>{} icons visible</source>
             <translation>{}個のアイコンを表示中</translation>
+        </message>
+        <message>
+            <source>Delete from Library</source>
+            <translation>ライブラリから削除</translation>
+        </message>
+        <message>
+            <source>Delete Icon</source>
+            <translation>アイコンの削除</translation>
+        </message>
+        <message>
+            <source>Icon in Use</source>
+            <translation>使用中のアイコン</translation>
+        </message>
+        <message>
+            <source>This icon is currently assigned to one or more menu items.\n\nIf you delete it, those items will lose their icon image. Are you sure you want to proceed?</source>
+            <translation>このアイコンは現在1つ以上のメニュー項目に割り当てられています。\n\n削除すると、それらの項目のアイコン画像が失われます。続行してもよろしいですか？</translation>
+        </message>
+        <message>
+            <source>Are you sure you want to delete this icon from your library?</source>
+            <translation>このアイコンをライブラリから削除してもよろしいですか？</translation>
         </message>
     </context>
     <context>
@@ -244,15 +329,34 @@
             <translation>例: コピー、貼り付け、ブラシ...</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="998"/>
-            <location filename="../../src/ui/settings_ui.py" line="1127"/>
-            <source>Select Icon</source>
-            <translation>アイコンを選択</translation>
+            <location filename="../../src/ui/settings_ui.py" line="1007"/>
+            <source>Browse...</source>
+            <translation>参照...</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1007"/>
-            <source>Presets</source>
-            <translation>プリセット</translation>
+            <location filename="../../src/ui/settings_ui.py" line="1008"/>
+            <source>Choose an image file from disk</source>
+            <translation>ディスクから画像ファイルを選択</translation>
+        </message>
+        <message>
+            <location filename="../../src/ui/settings_ui.py" line="1011"/>
+            <source>Presets / Recent...</source>
+            <translation>プリセット・履歴...</translation>
+        </message>
+        <message>
+            <location filename="../../src/ui/settings_ui.py" line="1012"/>
+            <source>Pick from built-in presets or recently used icons</source>
+            <translation>プリセットまたは最近使用したアイコンから選択</translation>
+        </message>
+        <message>
+            <location filename="../../src/ui/settings_ui.py" line="1015"/>
+            <source>Clear</source>
+            <translation>クリア</translation>
+        </message>
+        <message>
+            <location filename="../../src/ui/settings_ui.py" line="1016"/>
+            <source>Remove icon</source>
+            <translation>アイコンを削除</translation>
         </message>
         <message>
             <location filename="../../src/ui/settings_ui.py" line="1048"/>
