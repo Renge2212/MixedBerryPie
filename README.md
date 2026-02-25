@@ -8,6 +8,12 @@
   <video src="https://github.com/user-attachments/assets/e904183c-4f5b-4a8a-9229-abaa91c56b64" width="100%" controls autoplay loop muted></video>
 </p>
 
+<p align="center">
+  <a href="YOUR_STORE_URL_HERE">
+    <img src="https://get.microsoft.com/images/ja-jp%20dark.svg" width="160" alt="Microsoft Store から入手"/>
+  </a>
+</p>
+
 キーボードショートカットを素早く呼び出し、生産性を向上させるための、高パフォーマンスでカスタマイズ可能なWindows用パイメニューです。
 主にイラスト制作やデジタルアートのワークフローにおいて、ペンタブレットを持ったまま片手でショートカットを操作することを想定して設計されています。
 
@@ -30,6 +36,15 @@
 ## 使い方
 
 ### 導入方法
+
+#### Microsoft Store からのインストール (推奨)
+以下のバッジをクリックしてインストールしてください。Store版は自動で最新バージョンへアップデートされます。
+
+<a href="YOUR_STORE_URL_HERE">
+  <img src="https://get.microsoft.com/images/ja-jp%20dark.svg" width="160" alt="Microsoft Store から入手"/>
+</a>
+
+#### GitHubからの手動インストール
 1. [Releases](../../releases) ページから最新のインストーラー (`MixedBerryPie-*-Setup.exe`) をダウンロードしてインストールします。
 2. アプリケーションを起動すると、システムトレイにアイコンが常駐します。
 
