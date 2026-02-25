@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="YOUR_STORE_URL_HERE">
+  <a href="https://apps.microsoft.com/detail/9ns29508pnzp?hl=ja-JP&gl=JP">
     <img src="https://get.microsoft.com/images/ja-jp%20dark.svg" width="160" alt="Microsoft Store から入手"/>
   </a>
 </p>
@@ -40,7 +40,7 @@
 #### Microsoft Store からのインストール (推奨)
 以下のバッジをクリックしてインストールしてください。Store版は自動で最新バージョンへアップデートされます。
 
-<a href="YOUR_STORE_URL_HERE">
+<a href="https://apps.microsoft.com/detail/9ns29508pnzp?hl=ja-JP&gl=JP">
   <img src="https://get.microsoft.com/images/ja-jp%20dark.svg" width="160" alt="Microsoft Store から入手"/>
 </a>
 
