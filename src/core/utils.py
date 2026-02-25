@@ -92,7 +92,7 @@ def resolve_icon_path(path: str) -> str | None:
             if os.path.exists(managed_path):
                 return os.path.abspath(managed_path)
 
-    # Try resolving as resource (e.g. presets 'icons/pencil.svg')
+    # Try resolving as resource (e.g. presets 'icons/Drawing Tools/pencil.svg')
     resource_path = get_resource_path(os.path.join("resources", path))
     if os.path.exists(resource_path):
         return resource_path
@@ -102,6 +102,14 @@ def resolve_icon_path(path: str) -> str | None:
         preset_path = get_resource_path(os.path.join("resources", "icons", path))
         if os.path.exists(preset_path):
             return preset_path
+
+    # Fallback for old configs where icons were flat inside resources/icons
+    basename = os.path.basename(path)
+    icons_dir = get_resource_path(os.path.join("resources", "icons"))
+    if os.path.exists(icons_dir):
+        for root, _, files in os.walk(icons_dir):
+            if basename in files:
+                return os.path.join(root, basename)
 
     # Return original if resolution fails (it might be an absolute path that doesn't exist yet)
     return path

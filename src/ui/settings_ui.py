@@ -1,7 +1,7 @@
 import contextlib
 import math
 import os
-from typing import Any, ClassVar
+from typing import Any
 
 from PyQt6.QtCore import (
     QEvent,
@@ -350,7 +350,7 @@ class IconLoaderThread(QThread):
                 break
 
             path = os.path.join(self.icons_dir, filename)
-            name = os.path.splitext(filename)[0]
+            name = os.path.splitext(os.path.basename(filename))[0]
 
             # Use QImage which is thread-safe (QPixmap is NOT thread-safe)
             render_size = 64
@@ -378,239 +378,8 @@ class IconPickerWidget(QDialog):
     # ------------------------------------------------------------------ #
     # Category → list of icon-name prefixes (icon filename without .svg) #
     # ------------------------------------------------------------------ #
-    CATEGORIES: ClassVar[dict[str, list[str]]] = {
-        "Drawing Tools": [
-            "pen",
-            "pencil",
-            "brush",
-            "eraser",
-            "highlighter",
-            "pipette",
-            "paint-bucket",
-            "spray-can",
-            "stamp",
-            "wand",
-            "wand-sparkles",
-            "spline",
-            "spline-pointer",
-            "vector-square",
-        ],
-        "Shapes & Geometry": [
-            "circle",
-            "square",
-            "triangle",
-            "rectangle",
-            "hexagon",
-            "octagon",
-            "diamond",
-            "star",
-            "ellipsis",
-            "dot",
-            "cylinder",
-            "cone",
-            "torus",
-            "pyramid",
-            "box",
-            "cuboid",
-            "proportions",
-            "shapes",
-            "squircle",
-            "tangent",
-            "radius",
-        ],
-        "Layers & Canvas": [
-            "layers",
-            "layer",
-            "copy",
-            "clipboard",
-            "group",
-            "ungroup",
-            "bring-to-front",
-            "send-to-back",
-            "object-ungroup",
-            "frame",
-            "crop",
-            "maximize",
-            "minimize",
-            "expand",
-            "shrink",
-            "full-screen",
-            "corner-up",
-            "corner-down",
-        ],
-        "Transform": [
-            "rotate",
-            "flip",
-            "scale",
-            "scaling",
-            "move",
-            "grab",
-            "hand",
-            "align-center",
-            "align-end-horizontal",
-            "align-start-horizontal",
-            "align-end-vertical",
-            "align-start-vertical",
-            "align-justify",
-            "align-left",
-            "align-right",
-            "stretch",
-            "arrows-maximize",
-            "arrows-minimize",
-            "unfold",
-            "fold",
-        ],
-        "Selection & Pointer": [
-            "pointer",
-            "pointer-off",
-            "mouse-pointer",
-            "mouse-pointer-2",
-            "mouse-pointer-click",
-            "crosshair",
-            "focus",
-            "scan",
-            "frame-corners",
-            "lasso",
-            "select-all",
-        ],
-        "View & Zoom": [
-            "zoom",
-            "eye",
-            "eye-off",
-            "view",
-            "maximize",
-            "minimize",
-            "minimize-2",
-            "maximize-2",
-            "panel",
-            "sidebar",
-            "layout",
-            "columns",
-            "rows",
-            "grid",
-        ],
-        "Colors & Palette": [
-            "palette",
-            "pipette",
-            "swatch",
-            "contrast",
-            "sun",
-            "moon",
-            "sparkle",
-            "sparkles",
-        ],
-        "Arrows & Direction": [
-            "arrow",
-            "chevron",
-            "move-",
-            "corner-",
-            "navigation",
-            "circle-arrow",
-            "circle-chevron",
-        ],
-        "Text & Typography": [
-            "type",
-            "text",
-            "bold",
-            "italic",
-            "underline",
-            "strikethrough",
-            "subscript",
-            "superscript",
-            "pilcrow",
-            "heading",
-            "list",
-            "quote",
-            "letter-",
-            "case-",
-            "align-",
-            "wrap",
-            "spell-check",
-            "char",
-        ],
-        "Edit & History": [
-            "undo",
-            "redo",
-            "copy",
-            "paste",
-            "cut",
-            "scissors",
-            "trash",
-            "delete",
-            "replace",
-            "remove-formatting",
-            "diff",
-            "merge",
-            "save",
-            "save-all",
-            "save-off",
-        ],
-        "Files & Folders": [
-            "file",
-            "folder",
-            "archive",
-            "download",
-            "upload",
-            "import",
-            "export",
-            "package",
-            "zip",
-        ],
-        "Filters & Effects": [
-            "filter",
-            "funnel",
-            "blend",
-            "opacity",
-            "gradient",
-            "shadow",
-            "glow",
-            "noise",
-            "blur",
-        ],
-        "UI Controls": [
-            "plus",
-            "minus",
-            "check",
-            "x",
-            "slash",
-            "divide",
-            "lock",
-            "unlock",
-            "settings",
-            "settings-2",
-            "sliders",
-            "knob",
-            "toggle",
-            "more-horizontal",
-            "more-vertical",
-            "menu",
-            "ellipsis",
-        ],
-        "Symbols & Icons": [
-            "star",
-            "heart",
-            "bookmark",
-            "flag",
-            "tag",
-            "tags",
-            "ribbon",
-            "badge",
-            "sticker",
-            "award",
-            "trophy",
-            "crown",
-            "zap",
-            "bolt",
-            "sparkle",
-            "sun",
-            "moon",
-            "infinity",
-            "sigma",
-            "pi",
-            "hash",
-            "at-sign",
-        ],
-    }
+    # The dynamic list of categories will be generated based on the subdirectories
+    # inside resources/icons.
 
     def __init__(self, parent=None, all_profiles=None):
         super().__init__(parent)
@@ -634,7 +403,23 @@ class IconPickerWidget(QDialog):
         self.category_combo = QComboBox()
         self.category_combo.addItem(self.tr("All"), "All")
         self.category_combo.addItem(self.tr("User Icons"), "User Icons")  # history comes first
-        for cat in self.CATEGORIES:
+
+        # Dynamically discover directories as categories
+        categories = []
+        icons_dir = get_resource_path(os.path.join("resources", "icons"))
+        if os.path.exists(icons_dir):
+            for d in os.listdir(icons_dir):
+                if os.path.isdir(os.path.join(icons_dir, d)):
+                    categories.append(d)
+
+        # Sort them and prioritize RengeIcon
+        if "RengeIcon" in categories:
+            categories.remove("RengeIcon")
+            categories = ["RengeIcon", *sorted(categories)]
+        else:
+            categories = sorted(categories)
+
+        for cat in categories:
             self.category_combo.addItem(self.tr(cat), cat)
         self.category_combo.setMinimumWidth(160)
         self.category_combo.currentIndexChanged.connect(self._apply_filters)
@@ -724,19 +509,19 @@ class IconPickerWidget(QDialog):
     # Category matching                                                    #
     # ------------------------------------------------------------------ #
     def _get_category_for_name(self, name: str) -> str | None:
-        """Return the first matching category for an icon name, or None."""
-        for cat, prefixes in self.CATEGORIES.items():
-            for prefix in prefixes:
-                if name == prefix or name.startswith(prefix + "-") or name.startswith(prefix + "_"):
-                    return cat
-        return None
+        return "Misc"
 
     def _load_icons(self):
         icons_dir = get_resource_path(os.path.join("resources", "icons"))
         if not os.path.exists(icons_dir):
             return
 
-        files = [f for f in os.listdir(icons_dir) if f.lower().endswith(".svg")]
+        files = []
+        for root, _, filenames in os.walk(icons_dir):
+            for f in filenames:
+                if f.lower().endswith(".svg"):
+                    rel_path = os.path.relpath(os.path.join(root, f), icons_dir).replace("\\", "/")
+                    files.append(rel_path)
         files.sort()
 
         self.status_label.setText(self.tr("Loading icons..."))
@@ -755,8 +540,12 @@ class IconPickerWidget(QDialog):
         icon = QIcon(pixmap)
         item = QListWidgetItem(icon, name)
         item.setData(Qt.ItemDataRole.UserRole, relative_path)
+
         # Store category in UserRole+1 for fast filtering
-        item.setData(Qt.ItemDataRole.UserRole + 1, self._get_category_for_name(name))
+        parts = relative_path.split("/")
+        category = parts[1] if len(parts) > 2 else self._get_category_for_name(name)
+
+        item.setData(Qt.ItemDataRole.UserRole + 1, category)
         item.setToolTip(name)
         self.list_widget.addItem(item)
 
