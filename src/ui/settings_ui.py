@@ -886,26 +886,27 @@ class IconPickerWidget(QDialog):
 
         # Check if in use
         if self._is_icon_in_use(path):
+            title = self.tr("Icon in Use")
+            msg = self.tr(
+                "This icon is currently assigned to one or more menu items.\n\nIf you delete it, those items will lose their icon image. Are you sure you want to proceed?"
+            )
             reply = QMessageBox.warning(
                 self,
-                self.tr("Icon in Use"),
-                self.tr(
-                    "This icon is currently assigned to one or more menu items.\n\n"
-                    "If you delete it, those items will lose their icon image. "
-                    "Are you sure you want to proceed?"
-                ),
+                title,
+                msg,
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No,
             )
         else:
+            title = self.tr("Delete Icon")
+            msg = self.tr("Are you sure you want to delete this icon from your library?")
             reply = QMessageBox.question(
                 self,
-                self.tr("Delete Icon"),
-                self.tr("Are you sure you want to delete this icon from your library?"),
+                title,
+                msg,
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No,
             )
-
         if reply == QMessageBox.StandardButton.Yes:
             remove_from_icon_history(path)
 
