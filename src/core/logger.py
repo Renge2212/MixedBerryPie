@@ -1,28 +1,26 @@
-"""Logging configuration for MixedBerryPie application.
-
-Provides structured logging with file rotation and configurable levels.
-All modules should use get_logger(__name__) to obtain a logger instance.
-"""
-
 import ctypes
 import logging
 import logging.handlers
+import os
 from pathlib import Path
 
 
-def is_admin():
+def is_admin() -> bool:
+    """Check if the current process has administrative privileges."""
     try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except Exception:
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except (AttributeError, OSError):
         return False
 
 
 # Project root (base of MixedBerryPie directory)
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
-# Create logs directory at root
-LOGS_DIR = PROJECT_ROOT / "logs"
-LOGS_DIR.mkdir(exist_ok=True)
+# Log storage: Use AppData on Windows to allow writing even when installed in Program Files
+APP_NAME = "MixedBerryPie"
+APPDATA = os.getenv("LOCALAPPDATA", os.path.expanduser("~"))
+LOGS_DIR = Path(APPDATA) / APP_NAME / "logs"
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Log file path
 LOG_FILE = LOGS_DIR / "mixedberrypie.log"
@@ -104,13 +102,8 @@ def get_logger(name: str | None = None) -> logging.Logger:
     return logging.getLogger(name)
 
 
-# Initialize the base logger
+# Initialize the base logger on module import (needed for RotatingFileHandler)
+# The directory creation is intentional: the app requires a writable log directory.
 setup_logger()
 logger = get_logger("core")
-
-# Log startup
-logger.info("=" * 60)
-logger.info("MixedBerryPie Logger Initialized")
-logger.info(f"Log file: {LOG_FILE}")
-logger.info(f"Process Elevation (Admin): {is_admin()}")
-logger.info("=" * 60)
+logger.debug("Logger module initialized — Log file: %s", LOG_FILE)

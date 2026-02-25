@@ -1,4 +1,5 @@
 import ctypes
+import os
 import sys
 from ctypes import wintypes
 from typing import Any, ClassVar
@@ -204,8 +205,6 @@ def get_active_window_info() -> tuple[str | None, str | None]:
         return None, None
 
     try:
-        import os
-
         hwnd = user32.GetForegroundWindow()
         if not hwnd:
             return None, None
@@ -242,15 +241,6 @@ def get_open_windows() -> list[tuple[str, str]]:
     """Get a list of (executable_name, window_title) for all visible top-level windows."""
     if sys.platform != "win32":
         return []
-
-    import ctypes
-    import os
-    from ctypes import wintypes
-
-    # We need to re-access these because they might be inside the 'if win32' block
-    # but here we are in a top-level function. Actually they ARE top-level if sys.platform == "win32".
-    user32 = ctypes.WinDLL("user32", use_last_error=True)
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
     windows: list[tuple[str, str]] = []
 

@@ -7,4 +7,4 @@ __author__ = "Renge2212"
 __description__ = "Radial pie menu for quick keyboard shortcuts"
 
 # Schema version for config file compatibility
-CONFIG_SCHEMA_VERSION = 2
+CONFIG_SCHEMA_VERSION = 4
