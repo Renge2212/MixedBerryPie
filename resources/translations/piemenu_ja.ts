@@ -4,47 +4,47 @@
     <context>
         <name>AppPickerDialog</name>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1123"/>
+            <location filename="../../src/ui/settings_ui.py" line="1124"/>
             <source>Select App</source>
             <translation>アプリを選択</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1131"/>
+            <location filename="../../src/ui/settings_ui.py" line="1132"/>
             <source>Select an application from the running windows to add it to target apps.</source>
             <translation>実行中のウィンドウからアプリケーションを選択して、対象アプリに追加します。</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1138"/>
+            <location filename="../../src/ui/settings_ui.py" line="1139"/>
             <source>Process</source>
             <translation>プロセス</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1138"/>
+            <location filename="../../src/ui/settings_ui.py" line="1139"/>
             <source>Window Title</source>
             <translation>ウィンドウタイトル</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1152"/>
+            <location filename="../../src/ui/settings_ui.py" line="1153"/>
             <source>Refresh</source>
             <translation>更新</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1154"/>
+            <location filename="../../src/ui/settings_ui.py" line="1155"/>
             <source>Cancel</source>
             <translation>キャンセル</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1156"/>
+            <location filename="../../src/ui/settings_ui.py" line="1157"/>
             <source>Add Selected</source>
             <translation>選択したアプリを追加</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1191"/>
+            <location filename="../../src/ui/settings_ui.py" line="1192"/>
             <source>Selection Required</source>
             <translation>選択が必要です</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1192"/>
+            <location filename="../../src/ui/settings_ui.py" line="1193"/>
             <source>Please select an application from the list.</source>
             <translation>リストからアプリケーションを選択してください。</translation>
         </message>
@@ -192,7 +192,7 @@
     <context>
         <name>IconPickerWidget</name>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="617"/>
+            <location filename="../../src/ui/settings_ui.py" line="618"/>
             <source>Select Icon</source>
             <translation>アイコンを選択</translation>
         </message>
@@ -201,12 +201,12 @@
             <translation type="vanished">アイコンを検索...</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="645"/>
+            <location filename="../../src/ui/settings_ui.py" line="646"/>
             <source>Search:</source>
             <translation>検索:</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="647"/>
+            <location filename="../../src/ui/settings_ui.py" line="648"/>
             <source>Filter by name...</source>
             <translation>名前で検索...</translation>
         </message>
@@ -215,17 +215,17 @@
             <translation type="vanished">{}個のアイコンを読み込みました</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="634"/>
+            <location filename="../../src/ui/settings_ui.py" line="635"/>
             <source>All</source>
             <translation>すべて</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="635"/>
+            <location filename="../../src/ui/settings_ui.py" line="636"/>
             <source>User Icons</source>
             <translation>ユーザーアイコン</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="632"/>
+            <location filename="../../src/ui/settings_ui.py" line="633"/>
             <source>Category:</source>
             <translation>カテゴリー:</translation>
         </message>
@@ -286,38 +286,38 @@
             <translation type="vanished">シンボルとアイコン</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="711"/>
+            <location filename="../../src/ui/settings_ui.py" line="712"/>
             <source>OK</source>
             <translation>OK</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="713"/>
+            <location filename="../../src/ui/settings_ui.py" line="714"/>
             <source>Cancel</source>
             <translation>キャンセル</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="707"/>
-            <location filename="../../src/ui/settings_ui.py" line="741"/>
+            <location filename="../../src/ui/settings_ui.py" line="708"/>
+            <location filename="../../src/ui/settings_ui.py" line="742"/>
             <source>Loading icons...</source>
             <translation>アイコンを読み込み中...</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="764"/>
+            <location filename="../../src/ui/settings_ui.py" line="765"/>
             <source>Loaded {} icons...</source>
             <translation>{}個のアイコンを読み込みました...</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="824"/>
+            <location filename="../../src/ui/settings_ui.py" line="825"/>
             <source>{} icons visible</source>
             <translation>{}個のアイコンを表示中</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="853"/>
+            <location filename="../../src/ui/settings_ui.py" line="854"/>
             <source>Delete from Library</source>
             <translation>ライブラリから削除</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="891"/>
+            <location filename="../../src/ui/settings_ui.py" line="892"/>
             <source>This icon is currently assigned to one or more menu items.
 
 If you delete it, those items will lose their icon image. Are you sure you want to proceed?</source>
@@ -326,12 +326,12 @@ If you delete it, those items will lose their icon image. Are you sure you want 
 削除すると、それらの項目のアイコン画像が失われます。続行してもよろしいですか？</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="901"/>
+            <location filename="../../src/ui/settings_ui.py" line="902"/>
             <source>Delete Icon</source>
             <translation>アイコンの削除</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="889"/>
+            <location filename="../../src/ui/settings_ui.py" line="890"/>
             <source>Icon in Use</source>
             <translation>使用中のアイコン</translation>
         </message>
@@ -340,7 +340,7 @@ If you delete it, those items will lose their icon image. Are you sure you want 
             <translation type="vanished">このアイコンは現在1つ以上のメニュー項目に割り当てられています。\n\n削除すると、それらの項目のアイコン画像が失われます。続行してもよろしいですか？</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="902"/>
+            <location filename="../../src/ui/settings_ui.py" line="903"/>
             <source>Are you sure you want to delete this icon from your library?</source>
             <translation>このアイコンをライブラリから削除してもよろしいですか？</translation>
         </message>
@@ -348,119 +348,119 @@ If you delete it, those items will lose their icon image. Are you sure you want 
     <context>
         <name>ItemEditorDialog</name>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1434"/>
+            <location filename="../../src/ui/settings_ui.py" line="1435"/>
             <source>e.g. Copy, Paste, Brush...</source>
             <translation>例: コピー、貼り付け、ブラシ...</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1483"/>
-            <location filename="../../src/ui/settings_ui.py" line="1557"/>
+            <location filename="../../src/ui/settings_ui.py" line="1484"/>
+            <location filename="../../src/ui/settings_ui.py" line="1558"/>
             <source>Browse...</source>
             <translation>参照...</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1484"/>
-            <location filename="../../src/ui/settings_ui.py" line="1558"/>
+            <location filename="../../src/ui/settings_ui.py" line="1485"/>
+            <location filename="../../src/ui/settings_ui.py" line="1559"/>
             <source>Choose an image file from disk</source>
             <translation>ディスクから画像ファイルを選択</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1487"/>
-            <location filename="../../src/ui/settings_ui.py" line="1559"/>
+            <location filename="../../src/ui/settings_ui.py" line="1488"/>
+            <location filename="../../src/ui/settings_ui.py" line="1560"/>
             <source>Presets / Recent...</source>
             <translation>プリセット・履歴...</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1489"/>
-            <location filename="../../src/ui/settings_ui.py" line="1561"/>
+            <location filename="../../src/ui/settings_ui.py" line="1490"/>
+            <location filename="../../src/ui/settings_ui.py" line="1562"/>
             <source>Pick from built-in presets or recently used icons</source>
             <translation>プリセットまたは最近使用したアイコンから選択</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1493"/>
-            <location filename="../../src/ui/settings_ui.py" line="1563"/>
+            <location filename="../../src/ui/settings_ui.py" line="1494"/>
+            <location filename="../../src/ui/settings_ui.py" line="1564"/>
             <source>Clear</source>
             <translation>クリア</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1494"/>
-            <location filename="../../src/ui/settings_ui.py" line="1564"/>
+            <location filename="../../src/ui/settings_ui.py" line="1495"/>
+            <location filename="../../src/ui/settings_ui.py" line="1565"/>
             <source>Remove icon</source>
             <translation>アイコンを削除</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1544"/>
+            <location filename="../../src/ui/settings_ui.py" line="1545"/>
             <source>Edit Item</source>
             <translation>アイテムを編集</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1544"/>
+            <location filename="../../src/ui/settings_ui.py" line="1545"/>
             <source>Add Item</source>
             <translation>項目を追加</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1547"/>
+            <location filename="../../src/ui/settings_ui.py" line="1548"/>
             <source>Label:</source>
             <translation>ラベル:</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1548"/>
+            <location filename="../../src/ui/settings_ui.py" line="1549"/>
             <source>Action Type:</source>
             <translation>アクションタイプ:</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1549"/>
+            <location filename="../../src/ui/settings_ui.py" line="1550"/>
             <source>Value:</source>
             <translation>値:</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1550"/>
+            <location filename="../../src/ui/settings_ui.py" line="1551"/>
             <source>Color:</source>
             <translation>色:</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1551"/>
+            <location filename="../../src/ui/settings_ui.py" line="1552"/>
             <source>Icon:</source>
             <translation>アイコン:</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1554"/>
+            <location filename="../../src/ui/settings_ui.py" line="1555"/>
             <source>Cancel</source>
             <translation>キャンセル</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1555"/>
+            <location filename="../../src/ui/settings_ui.py" line="1556"/>
             <source>Preview</source>
             <translation>プレビュー</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1619"/>
+            <location filename="../../src/ui/settings_ui.py" line="1620"/>
             <source>notepad.exe or C:\Path\To\App.exe</source>
             <translation>notepad.exe または C:\Path\To\App.exe</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1622"/>
+            <location filename="../../src/ui/settings_ui.py" line="1623"/>
             <source>Click to record keys...</source>
             <translation>クリックしてキーを記録...</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1625"/>
+            <location filename="../../src/ui/settings_ui.py" line="1626"/>
             <source>Select Color</source>
             <translation>色を選択</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1646"/>
+            <location filename="../../src/ui/settings_ui.py" line="1647"/>
             <source>Select Icon</source>
             <translation type="unfinished">アイコンを選択</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1648"/>
+            <location filename="../../src/ui/settings_ui.py" line="1649"/>
             <source>Image Files (*.png *.jpg *.jpeg *.ico *.svg);;All Files (*)</source>
             <translation>画像ファイル (*.png *.jpg *.jpeg *.ico *.svg);;すべてのファイル (*)</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1688"/>
-            <location filename="../../src/ui/settings_ui.py" line="1694"/>
+            <location filename="../../src/ui/settings_ui.py" line="1689"/>
+            <location filename="../../src/ui/settings_ui.py" line="1695"/>
             <source>No
 Icon</source>
             <translation type="unfinished"></translation>
@@ -470,24 +470,24 @@ Icon</source>
             <translation type="vanished">アイコンなし</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1705"/>
-            <location filename="../../src/ui/settings_ui.py" line="1708"/>
-            <location filename="../../src/ui/settings_ui.py" line="1716"/>
+            <location filename="../../src/ui/settings_ui.py" line="1706"/>
+            <location filename="../../src/ui/settings_ui.py" line="1709"/>
+            <location filename="../../src/ui/settings_ui.py" line="1717"/>
             <source>Input Error</source>
             <translation>入力エラー</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1705"/>
+            <location filename="../../src/ui/settings_ui.py" line="1706"/>
             <source>Please enter a label.</source>
             <translation>ラベルを入力してください。</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1708"/>
+            <location filename="../../src/ui/settings_ui.py" line="1709"/>
             <source>Please set a value.</source>
             <translation>値を設定してください。</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1717"/>
+            <location filename="../../src/ui/settings_ui.py" line="1718"/>
             <source>Cannot set the same key as the global trigger key.</source>
             <translation>グローバルトリガーキーと同じキーは設定できません。</translation>
         </message>
@@ -495,17 +495,17 @@ Icon</source>
     <context>
         <name>KeySequenceEdit</name>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="135"/>
+            <location filename="../../src/ui/settings_ui.py" line="136"/>
             <source>Enter text...</source>
             <translation>テキストを入力...</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="162"/>
+            <location filename="../../src/ui/settings_ui.py" line="163"/>
             <source>Press keys...</source>
             <translation>キーを押す...</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="175"/>
+            <location filename="../../src/ui/settings_ui.py" line="176"/>
             <source>Click to record keys</source>
             <translation>クリックしてキーを記録</translation>
         </message>
@@ -541,7 +541,7 @@ Icon</source>
     <context>
         <name>PiePreviewWidget</name>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="1340"/>
+            <location filename="../../src/ui/settings_ui.py" line="1341"/>
             <source>No Items</source>
             <translation>アイテムなし</translation>
         </message>
@@ -549,225 +549,230 @@ Icon</source>
     <context>
         <name>SettingsWindow</name>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2076"/>
+            <location filename="../../src/ui/settings_ui.py" line="2091"/>
             <source>MixedBerryPie Settings</source>
             <translation>MixedBerryPie 設定</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2079"/>
+            <location filename="../../src/ui/settings_ui.py" line="2094"/>
             <source>Menu Profiles</source>
             <translation>メニュープロファイル</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2080"/>
+            <location filename="../../src/ui/settings_ui.py" line="2095"/>
             <source>Add</source>
             <translation>追加</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2081"/>
+            <location filename="../../src/ui/settings_ui.py" line="2096"/>
             <source>Delete</source>
             <translation>削除</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2082"/>
+            <location filename="../../src/ui/settings_ui.py" line="2097"/>
             <source>Delete Profile</source>
             <translation>プロファイルを削除</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2085"/>
-            <location filename="../../src/ui/settings_ui.py" line="2095"/>
+            <location filename="../../src/ui/settings_ui.py" line="2100"/>
+            <location filename="../../src/ui/settings_ui.py" line="2110"/>
             <source>Menu Items</source>
             <translation>メニュー項目</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2086"/>
+            <location filename="../../src/ui/settings_ui.py" line="2101"/>
             <source>General Settings</source>
             <translation>一般設定</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2089"/>
+            <location filename="../../src/ui/settings_ui.py" line="2104"/>
             <source>Trigger Key</source>
             <translation>トリガーキー</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2090"/>
+            <location filename="../../src/ui/settings_ui.py" line="2105"/>
             <source>Global Hotkey:</source>
             <translation>グローバルホットキー:</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2091"/>
+            <location filename="../../src/ui/settings_ui.py" line="2106"/>
             <source>Target Apps:</source>
             <translation>対象アプリ:</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2092"/>
+            <location filename="../../src/ui/settings_ui.py" line="2107"/>
             <source>Pick from running apps</source>
             <translation>実行中のアプリから選択</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2096"/>
+            <location filename="../../src/ui/settings_ui.py" line="2111"/>
             <source>Add Item</source>
             <translation>項目を追加</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2097"/>
+            <location filename="../../src/ui/settings_ui.py" line="2112"/>
             <source>Edit</source>
             <translation>編集</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2098"/>
+            <location filename="../../src/ui/settings_ui.py" line="2113"/>
             <source>Remove</source>
             <translation>削除</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2099"/>
+            <location filename="../../src/ui/settings_ui.py" line="2114"/>
             <source>Move Up</source>
             <translation>上へ移動</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2100"/>
+            <location filename="../../src/ui/settings_ui.py" line="2115"/>
             <source>Move Down</source>
             <translation>下へ移動</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2103"/>
+            <location filename="../../src/ui/settings_ui.py" line="2118"/>
             <source>Live Preview</source>
             <translation>ライブプレビュー</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2106"/>
+            <location filename="../../src/ui/settings_ui.py" line="2121"/>
             <source>Language</source>
             <translation>言語</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2107"/>
+            <location filename="../../src/ui/settings_ui.py" line="2122"/>
             <source>Language:</source>
             <translation>言語:</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2109"/>
+            <location filename="../../src/ui/settings_ui.py" line="2124"/>
             <source>Display</source>
             <translation>表示</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2110"/>
+            <location filename="../../src/ui/settings_ui.py" line="2125"/>
             <source>Menu Size:</source>
             <translation>メニューサイズ:</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2111"/>
+            <location filename="../../src/ui/settings_ui.py" line="2126"/>
             <source>Menu Opacity:</source>
             <translation>メニューの不透明度:</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2112"/>
+            <location filename="../../src/ui/settings_ui.py" line="2127"/>
             <source>Auto Scale:</source>
             <translation>自動スケール:</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2114"/>
+            <location filename="../../src/ui/settings_ui.py" line="2129"/>
             <source>Automatically adjust icons and text to menu size</source>
             <translation>アイコンとテキストをメニューサイズに自動調整する</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2116"/>
+            <location filename="../../src/ui/settings_ui.py" line="2131"/>
             <source>Icon Size:</source>
             <translation>アイコンサイズ:</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2117"/>
+            <location filename="../../src/ui/settings_ui.py" line="2132"/>
             <source>Text Size:</source>
             <translation>テキストサイズ:</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2119"/>
+            <location filename="../../src/ui/settings_ui.py" line="2134"/>
             <source>Behavior</source>
             <translation>動作</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2120"/>
+            <location filename="../../src/ui/settings_ui.py" line="2135"/>
             <source>Animations:</source>
             <translation>アニメーション:</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2121"/>
+            <location filename="../../src/ui/settings_ui.py" line="2136"/>
             <source>Enable menu open/close animations</source>
             <translation>メニューの開閉アニメーションを有効にする</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2122"/>
+            <location filename="../../src/ui/settings_ui.py" line="2137"/>
             <source>Execution Delay (ms):</source>
             <translation>実行遅延 (ミリ秒):</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2123"/>
+            <location filename="../../src/ui/settings_ui.py" line="2138"/>
             <source>Key Input Interval (ms):</source>
             <translation>キー入力間隔 (ミリ秒):</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2126"/>
+            <location filename="../../src/ui/settings_ui.py" line="2141"/>
             <source>Trigger Behavior</source>
             <translation>トリガー動作</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2127"/>
+            <location filename="../../src/ui/settings_ui.py" line="2142"/>
             <source>Replay original key on cancel</source>
             <translation>キャンセル時に元のキーを再現</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2130"/>
+            <location filename="../../src/ui/settings_ui.py" line="2145"/>
             <source>If enabled, releasing the trigger key without selecting an item will replay the original key input.</source>
             <translation>有効にすると、アイテムを選択せずにトリガーキーを離した場合、元のキー入力が再現されます。</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2133"/>
+            <location filename="../../src/ui/settings_ui.py" line="2148"/>
             <source>Long Press Delay:</source>
             <translation>長押し遅延:</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2135"/>
+            <location filename="../../src/ui/settings_ui.py" line="2150"/>
             <source>Wait time before showing the menu (ms). 0 for immediate.</source>
             <translation>メニューを表示するまでの待機時間(ミリ秒)。0で即時表示。</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2139"/>
+            <location filename="../../src/ui/settings_ui.py" line="2154"/>
             <source>Backup &amp; Restore</source>
             <translation>バックアップと復元</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2140"/>
+            <location filename="../../src/ui/settings_ui.py" line="2155"/>
             <source>Export Settings</source>
             <translation>設定をエクスポート</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2141"/>
+            <location filename="../../src/ui/settings_ui.py" line="2156"/>
             <source>Import Settings</source>
             <translation>設定をインポート</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2143"/>
+            <location filename="../../src/ui/settings_ui.py" line="2158"/>
             <source>Save &amp; Apply</source>
             <translation>保存して適用</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2188"/>
+            <location filename="../../src/ui/settings_ui.py" line="2203"/>
             <source>Rename Profile</source>
             <translation>プロファイル名を変更</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2188"/>
+            <location filename="../../src/ui/settings_ui.py" line="2203"/>
             <source>New name:</source>
             <translation>新しい名前:</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2195"/>
+            <location filename="../../src/ui/settings_ui.py" line="2210"/>
             <source>Error</source>
             <translation>エラー</translation>
         </message>
         <message>
-            <location filename="../../src/ui/settings_ui.py" line="2195"/>
+            <location filename="../../src/ui/settings_ui.py" line="2210"/>
             <source>Profile &apos;{}&apos; already exists.</source>
             <translation>プロファイル &apos;{}&apos; は既に存在します。</translation>
+        </message>
+        <message>
+            <location filename="../../src/ui/settings_ui.py" line="2763"/>
+            <source>✓ Saved successfully</source>
+            <translation>✓ 保存しました</translation>
         </message>
     </context>
     <context>

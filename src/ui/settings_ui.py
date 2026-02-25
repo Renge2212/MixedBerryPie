@@ -12,6 +12,7 @@ from PyQt6.QtCore import (
     QStandardPaths,
     Qt,
     QThread,
+    QTimer,
     pyqtSignal,
 )
 from PyQt6.QtGui import (
@@ -2046,11 +2047,13 @@ class SettingsWindow(QWidget):
         # Apply initial visibility
         self._update_scale_visibility()
 
-        # Bottom Save
+        # Bottom Save Row
         self.btn_save = QPushButton("Save & Apply")
         self.btn_save.setFixedHeight(45)
+        self.btn_save.setEnabled(False)  # Initial state is disabled (no changes yet)
         self._apply_save_btn_style()  # Re-apply style
         self.btn_save.clicked.connect(self.save_all)  # Connected to save_all
+
         content.addWidget(self.btn_save)
 
         self.item_btns_group = [
@@ -2200,8 +2203,13 @@ class SettingsWindow(QWidget):
             item.setText(new_name)
             logger.info(f"Profile renamed: {old_name} -> {new_name}")
 
-    def set_dirty(self):
+    def set_dirty(self, *args, **kwargs):
+        if getattr(self, "_is_loading", False):
+            return
         self.is_dirty = True
+        if hasattr(self, "btn_save"):
+            self.btn_save.setEnabled(True)
+            self.btn_save.setText(self.tr("Save & Apply"))
 
     def _apply_theme(self):
         dark = is_dark_mode()
@@ -2287,25 +2295,33 @@ class SettingsWindow(QWidget):
         )
 
     def _apply_save_btn_style(self):
-        self.btn_save.setStyleSheet("""
-            QPushButton {
+        dark = is_dark_mode()
+        disabled_bg = "#444444" if dark else "#e1e4e8"
+        disabled_fg = "#888888" if dark else "#a3aab2"
+        self.btn_save.setStyleSheet(f"""
+            QPushButton {{
                 background-color: #2da44e;
                 color: white;
                 font-weight: bold;
                 font-size: 14px;
                 border-radius: 6px;
                 border: none;
-            }
-            QPushButton:hover {
+            }}
+            QPushButton:hover {{
                 background-color: #2c974b;
-            }
-            QPushButton:pressed {
+            }}
+            QPushButton:pressed {{
                 background-color: #298e46;
-            }
+            }}
+            QPushButton:disabled {{
+                background-color: {disabled_bg};
+                color: {disabled_fg};
+            }}
         """)
 
     def load_data(self) -> None:
         """Load settings and profiles from configuration."""
+        self._is_loading = True
         logger.info("Loading settings data")
         self.profiles, self.settings = config.load_config()  # Load all profiles and global settings
         self.action_delay_spin.setValue(self.settings.action_delay_ms)
@@ -2331,6 +2347,10 @@ class SettingsWindow(QWidget):
             self.add_profile(default_name="デフォルトプロファイル")
 
         self.is_dirty = False  # Reset dirty flag after loading
+        self._is_loading = False
+        if hasattr(self, "btn_save"):
+            self.btn_save.setEnabled(False)
+            self.btn_save.setText(self.tr("Save & Apply"))
 
     def switch_profile(self, index: int) -> None:
         """Switch the currently edited profile."""
@@ -2735,7 +2755,18 @@ class SettingsWindow(QWidget):
             if self.on_save_callback:
                 self.on_save_callback()
             if show_success:
-                QMessageBox.information(self, "成功", "設定を保存し適用しました！")
+                self.btn_save.setEnabled(False)
+                original_text = self.tr("Save & Apply")
+                self.btn_save.setText(self.tr("✓ Saved successfully"))
+
+                # Restore text after 3 seconds
+                def restore_text():
+                    if not self.btn_save.isEnabled() and self.btn_save.text() == self.tr(
+                        "✓ Saved successfully"
+                    ):
+                        self.btn_save.setText(original_text)
+
+                QTimer.singleShot(3000, restore_text)
             logger.info("Settings saved successfully")
             return True
         else:
