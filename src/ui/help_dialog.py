@@ -7,6 +7,7 @@ Displays comprehensive help information including:
 - Tips and troubleshooting
 """
 
+import html as html_module
 from typing import Any
 
 from PyQt6.QtCore import QEvent, Qt
@@ -14,6 +15,7 @@ from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import QDialog, QLabel, QPushButton, QTextBrowser, QVBoxLayout
 
 from src.core import config
+from src.core.utils import is_dark_mode
 from src.core.version import __version__
 
 
@@ -37,6 +39,9 @@ class HelpDialog(QDialog):
 
         layout = QVBoxLayout()
         self.setLayout(layout)
+
+        # Cache config for display
+        self.profiles, self.settings = config.load_config()
 
         # Title
         title = QLabel(f"MixedBerryPie v{__version__}")
@@ -76,62 +81,59 @@ class HelpDialog(QDialog):
 
     def _generate_help_html(self) -> str:
         """Generate HTML help content."""
-        profiles, settings = config.load_config()
+        profiles = self.profiles
+        settings = self.settings
 
-        # Use formatting from the first profile
-        if profiles:
-            profile = profiles[0]
-            items = profile.items
-            trigger_key = profile.trigger_key
-        else:
-            items = []
-            trigger_key = "未設定"
+        # Theme colors based on system preference
+        dark = is_dark_mode()
+        bg_color = "#1e1e1e" if dark else "#ffffff"
+        text_color = "#d4d4d4" if dark else "#333333"
+        header_color = "#569cd6" if dark else "#005a9e"
+        sub_header_color = "#4ec9b0" if dark else "#0078d4"
+        table_bg = "#252526" if dark else "#ffffff"
+        table_border = "#3c3c3c" if dark else "#cccccc"
+        row_even = "#2d2d30" if dark else "#f9f9f9"
+        code_bg = "#3c3c3c" if dark else "#eeeeee"
+        code_color = "#ce9178" if dark else "#a31515"
+        link_color = "#3794ff" if dark else "#0066cc"
 
-        # Build shortcuts table
+        # Build profiles summary
+        profiles_html = ""
+        for p in profiles:
+            apps = (
+                html_module.escape(", ".join(p.target_apps)) if p.target_apps else self.tr("Global")
+            )
+            profiles_html += (
+                f"<li><b>{html_module.escape(p.name)}</b>: "
+                f"<code>{html_module.escape(p.trigger_key)}</code> ({apps})</li>"
+            )
+
+        # Build shortcuts table (for the first profile)
         shortcuts_html = ""
-        for item in items:
-            shortcuts_html += f"""
-            <tr>
-                <td style="padding: 5px;"><b>{item.label}</b></td>
-                <td style="padding: 5px; font-family: monospace;">{item.key}</td>
-                <td style="padding: 5px; background-color: {item.color}; width: 30px;"></td>
-            </tr>
-            """
+        if profiles:
+            p = profiles[0]
+            for item in p.items:
+                safe_label = html_module.escape(item.label)
+                safe_key = html_module.escape(item.key)
+                # color は既知の hex 形式 (#RRGGBB) のみ許可
+                safe_color = (
+                    item.color if item.color.startswith("#") and len(item.color) <= 9 else "#888888"
+                )
+                shortcuts_html += f"""
+                <tr>
+                    <td style="padding: 5px;"><b>{safe_label}</b></td>
+                    <td style="padding: 5px; font-family: monospace;">{safe_key}</td>
+                    <td style="padding: 5px; background-color: {safe_color}; width: 30px;"></td>
+                </tr>
+                """
 
-        t_how_to_use = self.tr("How to Use")
-        t_step1 = self.tr("Press Trigger Key:")
-        t_step2 = self.tr("Pie menu will appear around the mouse cursor position")
-        t_step3 = self.tr("Move mouse to select an item (highlighted)")
-        t_step4 = self.tr("Release the trigger key to execute the selected action")
-        t_step5 = self.tr(
-            "Release without selection to replay original key (depending on settings)"
-        )
-        t_shortcuts = self.tr("Configured Shortcuts")
-        t_default_profile = self.tr("Showing default profile")
-        t_label = self.tr("Label")
-        t_action = self.tr("Action")
-        t_color = self.tr("Color")
-
-        t_settings = self.tr("Current Settings")
-        t_trigger_key = self.tr("Trigger Key:")
-        t_action_delay = self.tr("Action Delay:")
-        t_overlay_size = self.tr("Menu Size:")
-
-        t_tips = self.tr("Tips")
-        t_tip1_tray = self.tr("Right-click tray icon to open settings")
-        t_tip2_cust = self.tr("Customize colors, labels, and shortcuts in settings")
-        t_tip3_any = self.tr("MixedBerryPie works in all applications")
-        t_tip4_logs = self.tr("Log file location:")
-        t_tip5_trouble = self.tr("(For troubleshooting)")
-
-        t_troubleshooting = self.tr("Troubleshooting")
-        t_ts1_delay = self.tr(
-            "If actions don't execute, try increasing the action delay in settings"
-        )
-        t_ts2_conflict = self.tr(
-            "If trigger key doesn't respond, check for conflicts with other apps"
-        )
-        t_ts3_log = self.tr("Check the log file for detailed errors")
+        # Translations
+        t_usage = self.tr("How to Use")
+        t_profiles = self.tr("Menu Profiles")
+        t_shortcuts = self.tr("Default Profile Items")
+        t_settings = self.tr("Global Settings")
+        t_tips = self.tr("Tips & Tricks")
+        t_trouble = self.tr("Troubleshooting")
 
         html = f"""
         <html>
@@ -139,98 +141,110 @@ class HelpDialog(QDialog):
             <style>
                 body {{
                     font-family: 'Segoe UI', 'Yu Gothic UI', sans-serif;
-                    background-color: #1e1e1e;
-                    color: #d4d4d4;
+                    background-color: {bg_color};
+                    color: {text_color};
                     padding: 10px;
+                    line-height: 1.4;
                 }}
                 h2 {{
-                    color: #569cd6;
-                    border-bottom: 1px solid #3c3c3c;
+                    color: {header_color};
+                    border-bottom: 1px solid {table_border};
                     padding-bottom: 5px;
-                    margin-top: 20px;
+                    margin-top: 24px;
                 }}
-                h3 {{ color: #4ec9b0; margin-top: 20px; }}
+                h3 {{ color: {sub_header_color}; margin-top: 20px; }}
                 table {{
                     border-collapse: collapse;
                     width: 100%;
                     margin: 10px 0;
-                    background-color: #252526;
+                    background-color: {table_bg};
                 }}
                 th, td {{
                     text-align: left;
                     padding: 8px;
-                    border: 1px solid #3c3c3c;
+                    border: 1px solid {table_border};
                 }}
                 th {{
                     background-color: #007acc;
                     color: white;
                 }}
                 tr:nth-child(even) {{
-                    background-color: #2d2d30;
+                    background-color: {row_even};
                 }}
                 code {{
-                    background-color: #3c3c3c;
+                    background-color: {code_bg};
                     padding: 2px 6px;
                     border-radius: 3px;
                     font-family: Consolas, monospace;
-                    color: #ce9178;
+                    color: {code_color};
                 }}
                 .key {{
                     background-color: #007acc;
                     color: white;
-                    padding: 3px 8px;
+                    padding: 2px 6px;
                     border-radius: 4px;
                     font-weight: bold;
+                    font-size: 0.9em;
                 }}
                 ul, ol {{ padding-left: 20px; }}
-                li {{ margin-bottom: 5px; }}
-                a {{ color: #3794ff; }}
+                li {{ margin-bottom: 6px; }}
+                a {{ color: {link_color}; text-decoration: none; }}
+                a:hover {{ text-decoration: underline; }}
+                .hint {{ font-style: italic; font-size: 0.9em; opacity: 0.8; }}
             </style>
         </head>
         <body>
-            <h2>📖 {t_how_to_use}</h2>
+            <h2>📖 {t_usage}</h2>
             <ol>
-                <li>{t_step1} <span class="key">{trigger_key}</span></li>
-                <li>{t_step2}</li>
-                <li>{t_step3}</li>
-                <li>{t_step4}</li>
-                <li>{t_step5}</li>
+                <li>{self.tr("Press and hold your trigger key.")}</li>
+                <li>{self.tr("Move mouse towards the item you want to select.")}</li>
+                <li>{self.tr("Release the key to execute the action.")}</li>
             </ol>
+            <p class="hint">※ {self.tr("If you release without moving, the original key might be replayed (see settings).")}</p>
+
+            <h2>🗂️ {t_profiles}</h2>
+            <p>{self.tr("You can define multiple profiles with different trigger keys and target applications.")}</p>
+            <ul>
+                {profiles_html}
+            </ul>
 
             <h2>⌨️ {t_shortcuts}</h2>
-            <p>※ {t_default_profile}</p>
             <table>
                 <tr>
-                    <th>{t_label}</th>
-                    <th>{t_action}</th>
-                    <th>{t_color}</th>
+                    <th>{self.tr("Label")}</th>
+                    <th>{self.tr("Action")}</th>
+                    <th>{self.tr("Color")}</th>
                 </tr>
                 {shortcuts_html}
             </table>
 
+            <h2>✨ {self.tr("Icons & Customization")}</h2>
+            <ul>
+                <li><b>{self.tr("Presets")}:</b> {self.tr("Choose from 1000+ curated icons sorted by categories.")}</li>
+                <li><b>{self.tr("History")}:</b> {self.tr("Recently used external images are saved in the 'Recent' category.")}</li>
+                <li><b>{self.tr("Dark Grid")}:</b> {self.tr("The icon picker uses a dark background so white icons are always visible.")}</li>
+            </ul>
+
             <h2>⚙️ {t_settings}</h2>
             <ul>
-                <li><b>{t_trigger_key}</b> <code>{trigger_key}</code></li>
-                <li><b>{t_action_delay}</b> {settings.action_delay_ms}ms</li>
-                <li><b>{t_overlay_size}</b> {settings.overlay_size}px</li>
+                <li><b>{self.tr("Action Delay")}:</b> {settings.action_delay_ms}ms</li>
+                <li><b>{self.tr("Menu Opacity")}:</b> {settings.menu_opacity}%</li>
+                <li><b>{self.tr("Auto Scale")}:</b> {"Yes" if settings.auto_scale_with_menu else "No"}</li>
             </ul>
 
             <h2>💡 {t_tips}</h2>
             <ul>
-                <li>{t_tip1_tray}</li>
-                <li>{t_tip2_cust}</li>
-                <li>{t_tip3_any}</li>
-                <li>{t_tip4_logs} <code>logs/mixedberrypie.log</code> {t_tip5_trouble}</li>
+                <li>{self.tr("Right-click the system tray icon to access settings.")}</li>
+                <li>{self.tr("You can export/import settings as JSON files for backup.")}</li>
+                <li>{self.tr("Use 'Target Apps' to limit a profile to specific software (e.g., Photoshop only).")}</li>
             </ul>
 
-            <h2>🔧 {t_troubleshooting}</h2>
+            <h2>🔧 {t_trouble}</h2>
             <ul>
-                <li>{t_ts1_delay}</li>
-                <li>{t_ts2_conflict}</li>
-                <li>{t_ts3_log}</li>
+                <li>{self.tr("If shortcuts don't trigger, check if another app is using the same hotkey.")}</li>
+                <li>{self.tr("Try increasing 'Key Input Interval' if some apps miss keystrokes.")}</li>
             </ul>
         </body>
         </html>
         """
-
         return html

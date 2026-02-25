@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.logger import get_logger
+from src.core.utils import is_dark_mode
 
 logger = get_logger(__name__)
 
@@ -39,8 +40,14 @@ class WelcomeDialog(QDialog):
             | Qt.WindowType.FramelessWindowHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.resize(600, 450)
+        self.resize(600, 500)
         self.setModal(True)
+
+        dark = is_dark_mode()
+        bg_color = "#1e1e1e" if dark else "#ffffff"
+        title_color = "#ffffff" if dark else "#111111"
+        sub_color = "#bbbbbb" if dark else "#555555"
+        border_color = "#333333" if dark else "#e0e0e0"
 
         # Main layout
         layout = QVBoxLayout()
@@ -49,12 +56,12 @@ class WelcomeDialog(QDialog):
 
         # Background Frame
         self.frame = QFrame()
-        self.frame.setStyleSheet("""
-            QFrame {
-                background-color: #ffffff;
+        self.frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {bg_color};
                 border-radius: 15px;
-                border: 1px solid #e0e0e0;
-            }
+                border: 1px solid {border_color};
+            }}
         """)
         frame_layout = QVBoxLayout()
         frame_layout.setSpacing(20)
@@ -65,7 +72,9 @@ class WelcomeDialog(QDialog):
         # Title
         title = QLabel(self.tr("Welcome to MixedBerryPie!"))
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet("font-size: 24px; font-weight: bold; color: #333; border: none;")
+        title.setStyleSheet(
+            f"font-size: 26px; font-weight: bold; color: {title_color}; border: none;"
+        )
         frame_layout.addWidget(title)
 
         # Subtitle
@@ -74,7 +83,9 @@ class WelcomeDialog(QDialog):
         )
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitle.setWordWrap(True)
-        subtitle.setStyleSheet("font-size: 14px; color: #666; margin-bottom: 20px; border: none;")
+        subtitle.setStyleSheet(
+            f"font-size: 15px; color: {sub_color}; margin-bottom: 20px; border: none;"
+        )
         frame_layout.addWidget(subtitle)
 
         # Steps
@@ -118,7 +129,7 @@ class WelcomeDialog(QDialog):
 
         self.close_btn = QPushButton(self.tr("Get Started"))
         self.close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.close_btn.setFixedSize(200, 45)
+        self.close_btn.setFixedSize(220, 48)
         self.close_btn.setStyleSheet("""
             QPushButton {
                 background-color: #0078d4;
@@ -126,7 +137,7 @@ class WelcomeDialog(QDialog):
                 font-size: 16px;
                 font-weight: bold;
                 border: none;
-                border-radius: 22px;
+                border-radius: 24px;
             }
             QPushButton:hover {
                 background-color: #106ebe;
@@ -146,24 +157,23 @@ class WelcomeDialog(QDialog):
         self.accept()
 
     def _add_step(self, layout: QVBoxLayout, title_text: str, desc_text: str) -> None:
-        """Add a step to the welcome guide.
-
-        Args:
-            layout: Layout to add the step to
-            title_text: Step title (e.g., '1️⃣ Press & Hold')
-            desc_text: Step description
-        """
-        QHBoxLayout()
+        """Add a step to the welcome guide."""
+        dark = is_dark_mode()
+        title_color = "#ffffff" if dark else "#333333"
+        desc_color = "#aaaaaa" if dark else "#666666"
+        bg_color = "#2d2d2d" if dark else "#f7f7f7"
 
         title = QLabel(title_text)
-        title.setStyleSheet("font-weight: bold; font-size: 16px; color: #333; border: none;")
+        title.setStyleSheet(
+            f"font-weight: bold; font-size: 16px; color: {title_color}; border: none;"
+        )
 
         desc = QLabel(desc_text)
-        desc.setStyleSheet("font-size: 14px; color: #555; border: none;")
+        desc.setStyleSheet(f"font-size: 14px; color: {desc_color}; border: none;")
 
         step_container = QFrame()
         step_container.setStyleSheet(
-            "background-color: #f9f9f9; border-radius: 8px; padding: 10px; border: none;"
+            f"background-color: {bg_color}; border-radius: 10px; padding: 10px; border: none;"
         )
         step_cont_layout = QVBoxLayout()
         step_cont_layout.addWidget(title)

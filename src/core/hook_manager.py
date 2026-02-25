@@ -30,6 +30,12 @@ _MOD_VK: dict[str, set[int]] = {
     "win": {0x5B, 0x5C},
 }
 
+# Windows Message Constants
+WM_KEYDOWN = 0x100
+WM_KEYUP = 0x101
+WM_SYSKEYDOWN = 0x104
+WM_SYSKEYUP = 0x105
+
 # All modifier VKs (to track held state)
 _ALL_MOD_VKS: dict[int, str] = {
     0xA2: "ctrl",
@@ -412,14 +418,9 @@ class HookManager:
             WM_SYSKEYDOWN = 0x104
             WM_SYSKEYUP   = 0x105
         """
-        wm_keydown = 0x100
-        wm_syskeydown = 0x104
-        wm_keyup = 0x101
-        wm_syskeyup = 0x105
-
         vk = data.vkCode
-        is_press = msg in (wm_keydown, wm_syskeydown)
-        is_release = msg in (wm_keyup, wm_syskeyup)
+        is_press = msg in (WM_KEYDOWN, WM_SYSKEYDOWN)
+        is_release = msg in (WM_KEYUP, WM_SYSKEYUP)
 
         # ── Track modifier state ──────────────────────────────────────────
         mod_name = _ALL_MOD_VKS.get(vk)
@@ -462,7 +463,6 @@ class HookManager:
 
         if is_press:
             with self._state_lock:
-                # GURAD: Ignore auto-repeat if already suppressed
                 if key_name in self._active_suppressions:
                     return False
 

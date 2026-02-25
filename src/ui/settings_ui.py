@@ -1,15 +1,26 @@
 import contextlib
 import math
 import os
-import winreg
-from typing import Any
+from typing import Any, ClassVar
 
-from PyQt6.QtCore import QEvent, QPoint, QRect, QRectF, QSize, Qt, QThread, pyqtSignal
+from PyQt6.QtCore import (
+    QEvent,
+    QPoint,
+    QRect,
+    QRectF,
+    QSize,
+    QStandardPaths,
+    Qt,
+    QThread,
+    pyqtSignal,
+)
 from PyQt6.QtGui import (
+    QAction,
     QBrush,
     QColor,
     QFont,
     QIcon,
+    QImage,
     QKeyEvent,
     QKeySequence,
     QPainter,
@@ -38,6 +49,7 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMenu,
     QMessageBox,
     QPushButton,
     QScrollArea,
@@ -51,24 +63,53 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core import config, i18n
-from src.core.config import MenuProfile, PieSlice
+from src.core.config import (
+    MenuProfile,
+    PieSlice,
+    add_to_icon_history,
+    load_icon_history,
+    remove_from_icon_history,
+)
 from src.core.logger import get_logger
-from src.core.utils import get_resource_path, resolve_icon_path
+from src.core.utils import get_resource_path, is_dark_mode, resolve_icon_path
 
 logger = get_logger(__name__)
 
 
-def is_dark_mode():
-    """Check Windows registry for dark mode preference."""
-    try:
-        registry = winreg.ConnectRegistry(None, winreg.HKEY_CURRENT_USER)
-        key = winreg.OpenKey(
-            registry, r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+def _render_icon_pixmap(path: str | None, size: int) -> QPixmap | None:
+    """Render an icon from path to a QPixmap, supporting SVG and raster formats.
+
+    Args:
+        path: Absolute path to the icon file (SVG or any Qt-supported raster format).
+        size: Target square size in pixels.
+
+    Returns:
+        Scaled QPixmap, or None if path is invalid or file cannot be loaded.
+    """
+    if not path or not os.path.exists(path):
+        return None
+
+    if path.lower().endswith(".svg"):
+        pixmap = QPixmap(size, size)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        renderer = QSvgRenderer(path)
+        if renderer.isValid():
+            painter = QPainter(pixmap)
+            renderer.render(painter)
+            painter.end()
+            return pixmap
+        return None
+    else:
+        # Raster formats: png, jpg, ico, bmp, webp, etc.
+        pixmap = QPixmap(path)
+        if pixmap.isNull():
+            return None
+        return pixmap.scaled(
+            size,
+            size,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
         )
-        value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
-        return value == 0
-    except Exception:
-        return True  # Default to dark
 
 
 class KeySequenceEdit(QLineEdit):
@@ -292,7 +333,8 @@ class SteppedSlider(QWidget):
 class IconLoaderThread(QThread):
     """Worker thread to load and render SVG icons asynchronously."""
 
-    icon_loaded = pyqtSignal(str, str, QIcon)  # relative_path, name, icon
+    # Use QImage (thread-safe) instead of QIcon/QPixmap (GUI-thread only)
+    icon_loaded = pyqtSignal(str, str, QImage)  # relative_path, name, image
     finished_loading = pyqtSignal()
 
     def __init__(self, icons_dir: str, files: list[str], parent=None):
@@ -309,20 +351,19 @@ class IconLoaderThread(QThread):
             path = os.path.join(self.icons_dir, filename)
             name = os.path.splitext(filename)[0]
 
-            # High quality render
+            # Use QImage which is thread-safe (QPixmap is NOT thread-safe)
             render_size = 64
-            pixmap = QPixmap(render_size, render_size)
-            pixmap.fill(Qt.GlobalColor.transparent)
+            image = QImage(render_size, render_size, QImage.Format.Format_ARGB32_Premultiplied)
+            image.fill(Qt.GlobalColor.transparent)
 
             renderer = QSvgRenderer(path)
             if renderer.isValid():
-                painter = QPainter(pixmap)
+                painter = QPainter(image)
                 renderer.render(painter)
                 painter.end()
 
-                icon = QIcon(pixmap)
                 relative_path = f"icons/{filename}"
-                self.icon_loaded.emit(relative_path, name, icon)
+                self.icon_loaded.emit(relative_path, name, image)
 
         self.finished_loading.emit()
 
@@ -333,45 +374,337 @@ class IconLoaderThread(QThread):
 class IconPickerWidget(QDialog):
     """Dialog to select from preset icons with search functionality."""
 
-    def __init__(self, parent=None):
+    # ------------------------------------------------------------------ #
+    # Category → list of icon-name prefixes (icon filename without .svg) #
+    # ------------------------------------------------------------------ #
+    CATEGORIES: ClassVar[dict[str, list[str]]] = {
+        "Drawing Tools": [
+            "pen",
+            "pencil",
+            "brush",
+            "eraser",
+            "highlighter",
+            "pipette",
+            "paint-bucket",
+            "spray-can",
+            "stamp",
+            "wand",
+            "wand-sparkles",
+            "spline",
+            "spline-pointer",
+            "vector-square",
+        ],
+        "Shapes & Geometry": [
+            "circle",
+            "square",
+            "triangle",
+            "rectangle",
+            "hexagon",
+            "octagon",
+            "diamond",
+            "star",
+            "ellipsis",
+            "dot",
+            "cylinder",
+            "cone",
+            "torus",
+            "pyramid",
+            "box",
+            "cuboid",
+            "proportions",
+            "shapes",
+            "squircle",
+            "tangent",
+            "radius",
+        ],
+        "Layers & Canvas": [
+            "layers",
+            "layer",
+            "copy",
+            "clipboard",
+            "group",
+            "ungroup",
+            "bring-to-front",
+            "send-to-back",
+            "object-ungroup",
+            "frame",
+            "crop",
+            "maximize",
+            "minimize",
+            "expand",
+            "shrink",
+            "full-screen",
+            "corner-up",
+            "corner-down",
+        ],
+        "Transform": [
+            "rotate",
+            "flip",
+            "scale",
+            "scaling",
+            "move",
+            "grab",
+            "hand",
+            "align-center",
+            "align-end-horizontal",
+            "align-start-horizontal",
+            "align-end-vertical",
+            "align-start-vertical",
+            "align-justify",
+            "align-left",
+            "align-right",
+            "stretch",
+            "arrows-maximize",
+            "arrows-minimize",
+            "unfold",
+            "fold",
+        ],
+        "Selection & Pointer": [
+            "pointer",
+            "pointer-off",
+            "mouse-pointer",
+            "mouse-pointer-2",
+            "mouse-pointer-click",
+            "crosshair",
+            "focus",
+            "scan",
+            "frame-corners",
+            "lasso",
+            "select-all",
+        ],
+        "View & Zoom": [
+            "zoom",
+            "eye",
+            "eye-off",
+            "view",
+            "maximize",
+            "minimize",
+            "minimize-2",
+            "maximize-2",
+            "panel",
+            "sidebar",
+            "layout",
+            "columns",
+            "rows",
+            "grid",
+        ],
+        "Colors & Palette": [
+            "palette",
+            "pipette",
+            "swatch",
+            "contrast",
+            "sun",
+            "moon",
+            "sparkle",
+            "sparkles",
+        ],
+        "Arrows & Direction": [
+            "arrow",
+            "chevron",
+            "move-",
+            "corner-",
+            "navigation",
+            "circle-arrow",
+            "circle-chevron",
+        ],
+        "Text & Typography": [
+            "type",
+            "text",
+            "bold",
+            "italic",
+            "underline",
+            "strikethrough",
+            "subscript",
+            "superscript",
+            "pilcrow",
+            "heading",
+            "list",
+            "quote",
+            "letter-",
+            "case-",
+            "align-",
+            "wrap",
+            "spell-check",
+            "char",
+        ],
+        "Edit & History": [
+            "undo",
+            "redo",
+            "copy",
+            "paste",
+            "cut",
+            "scissors",
+            "trash",
+            "delete",
+            "replace",
+            "remove-formatting",
+            "diff",
+            "merge",
+            "save",
+            "save-all",
+            "save-off",
+        ],
+        "Files & Folders": [
+            "file",
+            "folder",
+            "archive",
+            "download",
+            "upload",
+            "import",
+            "export",
+            "package",
+            "zip",
+        ],
+        "Filters & Effects": [
+            "filter",
+            "funnel",
+            "blend",
+            "opacity",
+            "gradient",
+            "shadow",
+            "glow",
+            "noise",
+            "blur",
+        ],
+        "UI Controls": [
+            "plus",
+            "minus",
+            "check",
+            "x",
+            "slash",
+            "divide",
+            "lock",
+            "unlock",
+            "settings",
+            "settings-2",
+            "sliders",
+            "knob",
+            "toggle",
+            "more-horizontal",
+            "more-vertical",
+            "menu",
+            "ellipsis",
+        ],
+        "Symbols & Icons": [
+            "star",
+            "heart",
+            "bookmark",
+            "flag",
+            "tag",
+            "tags",
+            "ribbon",
+            "badge",
+            "sticker",
+            "award",
+            "trophy",
+            "crown",
+            "zap",
+            "bolt",
+            "sparkle",
+            "sun",
+            "moon",
+            "infinity",
+            "sigma",
+            "pi",
+            "hash",
+            "at-sign",
+        ],
+    }
+
+    def __init__(self, parent=None, all_profiles=None):
         super().__init__(parent)
+        self.all_profiles = all_profiles or []
         self.setWindowTitle(self.tr("Select Icon"))
         self.setModal(True)
-        self.resize(800, 600)
+        self.resize(860, 620)
         self.selected_icon_path = None
         self._loader_thread: IconLoaderThread | None = None
         self._loaded_count = 0
 
-        layout = QVBoxLayout()
-        self.setLayout(layout)
+        layout = QVBoxLayout(self)
+        layout.setSpacing(6)
 
-        # Search Bar
-        search_layout = QHBoxLayout()
+        # ── Top filter bar ──────────────────────────────────────────── #
+        filter_layout = QHBoxLayout()
+        filter_layout.setSpacing(8)
+
+        # Category dropdown
+        filter_layout.addWidget(QLabel(self.tr("Category:")))
+        self.category_combo = QComboBox()
+        self.category_combo.addItem(self.tr("All"), "All")
+        self.category_combo.addItem(self.tr("User Icons"), "User Icons")  # history comes first
+        for cat in self.CATEGORIES:
+            self.category_combo.addItem(self.tr(cat), cat)
+        self.category_combo.setMinimumWidth(160)
+        self.category_combo.currentIndexChanged.connect(self._apply_filters)
+        filter_layout.addWidget(self.category_combo)
+
+        filter_layout.addSpacing(16)
+
+        # Text search
+        filter_layout.addWidget(QLabel(self.tr("Search:")))
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText(self.tr("Search icons..."))
-        self.search_input.textChanged.connect(self._filter_icons)
-        search_layout.addWidget(QLabel(self.tr("Search:")))
-        search_layout.addWidget(self.search_input)
-        layout.addLayout(search_layout)
+        self.search_input.setPlaceholderText(self.tr("Filter by name..."))
+        self.search_input.textChanged.connect(self._apply_filters)
+        filter_layout.addWidget(self.search_input, 1)
 
-        # Icon List (Grid Mode)
+        layout.addLayout(filter_layout)
+
+        # Apply theme to filter bar
+        dark = is_dark_mode()
+        label_clr = "#bbbbbb" if dark else "#555555"
+        self.setStyleSheet(f"""
+            QDialog {{ background-color: {"#1e1e1e" if dark else "#ffffff"}; }}
+            QLabel {{ color: {label_clr}; font-weight: bold; }}
+            QComboBox, QLineEdit {{
+                background-color: {"#252526" if dark else "#f6f8f9"};
+                border: 1px solid {"#3c3c3c" if dark else "#d0d7de"};
+                border-radius: 4px;
+                padding: 4px;
+                color: {"#cccccc" if dark else "#333333"};
+            }}
+        """)
+
+        # ── Icon grid ───────────────────────────────────────────────── #
         self.list_widget = QListWidget()
         self.list_widget.setViewMode(QListWidget.ViewMode.IconMode)
         self.list_widget.setResizeMode(QListWidget.ResizeMode.Adjust)
         self.list_widget.setMovement(QListWidget.Movement.Static)
         self.list_widget.setSpacing(5)
-        # Fix grid size to ensure uniform layout
         self.list_widget.setGridSize(QSize(72, 80))
         self.list_widget.setIconSize(QSize(48, 48))
         self.list_widget.setWordWrap(True)
         self.list_widget.setTextElideMode(Qt.TextElideMode.ElideMiddle)
         self.list_widget.itemDoubleClicked.connect(self._on_item_double_clicked)
+        self.list_widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.list_widget.customContextMenuRequested.connect(self._show_context_menu)
+        # Fixed dark canvas so white-stroke SVG icons are always visible
+        # regardless of Windows light/dark theme (same convention as VS Code,
+        # Figma, etc. for icon pickers)
+        self.list_widget.setStyleSheet("""
+            QListWidget {
+                background-color: #1e1e1e;
+                color: #cccccc;
+                border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 4px;
+            }
+            QListWidget::item {
+                color: #cccccc;
+                border-radius: 4px;
+            }
+            QListWidget::item:hover {
+                background-color: rgba(255, 255, 255, 0.08);
+            }
+            QListWidget::item:selected {
+                background-color: #0078d4;
+                color: #ffffff;
+            }
+        """)
         layout.addWidget(self.list_widget)
 
-        self._load_icons()
-
+        # ── Bottom bar ──────────────────────────────────────────────── #
         btn_box = QHBoxLayout()
-        self.status_label = QLabel(self.tr("{} icons loaded").format(self.list_widget.count()))
+        self.status_label = QLabel(self.tr("Loading icons..."))
         btn_box.addWidget(self.status_label)
         btn_box.addStretch()
 
@@ -383,6 +716,19 @@ class IconPickerWidget(QDialog):
         btn_box.addWidget(ok_btn)
         btn_box.addWidget(cancel_btn)
         layout.addLayout(btn_box)
+
+        self._load_icons()
+
+    # ------------------------------------------------------------------ #
+    # Category matching                                                    #
+    # ------------------------------------------------------------------ #
+    def _get_category_for_name(self, name: str) -> str | None:
+        """Return the first matching category for an icon name, or None."""
+        for cat, prefixes in self.CATEGORIES.items():
+            for prefix in prefixes:
+                if name == prefix or name.startswith(prefix + "-") or name.startswith(prefix + "_"):
+                    return cat
+        return None
 
     def _load_icons(self):
         icons_dir = get_resource_path(os.path.join("resources", "icons"))
@@ -402,48 +748,80 @@ class IconPickerWidget(QDialog):
         self._loader_thread.finished_loading.connect(self._on_loading_finished)
         self._loader_thread.start()
 
-    def _on_icon_loaded(self, relative_path: str, name: str, icon: QIcon):
+    def _on_icon_loaded(self, relative_path: str, name: str, image: QImage):
+        # Convert QImage -> QPixmap -> QIcon on the main thread (GUI-thread safe)
+        pixmap = QPixmap.fromImage(image)
+        icon = QIcon(pixmap)
         item = QListWidgetItem(icon, name)
         item.setData(Qt.ItemDataRole.UserRole, relative_path)
+        # Store category in UserRole+1 for fast filtering
+        item.setData(Qt.ItemDataRole.UserRole + 1, self._get_category_for_name(name))
         item.setToolTip(name)
         self.list_widget.addItem(item)
 
         self._loaded_count += 1
-        # Update status periodically to prevent UI chugging
         if self._loaded_count % 50 == 0:
             self.status_label.setText(self.tr("Loaded {} icons...").format(self._loaded_count))
 
-        # Immediately apply filter if one is typed
-        current_filter = self.search_input.text().lower().strip()
-        if current_filter and current_filter not in name.lower():
-            item.setHidden(True)
+        # Apply current filters immediately to new item
+        self._apply_filter_to_item(item)
 
     def _on_loading_finished(self):
-        self.status_label.setText(self.tr("{} icons loaded").format(self._loaded_count))
-        # Re-apply filter to be safe
-        self._filter_icons(self.search_input.text())
+        self._load_history_items()
+        self._apply_filters()
+
+    def _load_history_items(self):
+        """Prepend history (recent) items to the list from saved icon_history.json."""
+        history = load_icon_history()
+        for path in reversed(history):  # reversed so most-recent ends up at index 0
+            resolved = resolve_icon_path(path)
+            if not resolved or not os.path.exists(resolved):
+                continue
+            name = os.path.splitext(os.path.basename(resolved))[0]
+            pixmap = _render_icon_pixmap(resolved, 64)
+            if pixmap is None:
+                pixmap = QPixmap(64, 64)
+                pixmap.fill(Qt.GlobalColor.transparent)
+            icon = QIcon(pixmap)
+            item = QListWidgetItem(icon, name)
+            item.setData(Qt.ItemDataRole.UserRole, path)
+            item.setData(Qt.ItemDataRole.UserRole + 1, "User Icons")
+            item.setToolTip(resolved)
+            self.list_widget.insertItem(0, item)  # insert at top
 
     def reject(self):
         if self._loader_thread and self._loader_thread.isRunning():
             self._loader_thread.cancel()
-            self._loader_thread.wait()  # Ensure thread stops safely
+            self._loader_thread.wait()
         super().reject()
 
-    def _filter_icons(self, text):
-        text = text.lower().strip()
-        visible_count = 0
+    def _apply_filter_to_item(self, item: QListWidgetItem):
+        """Evaluate both filters for a single item."""
+        text = self.search_input.text().lower().strip()
+        cat_id = self.category_combo.currentData()
+        name = item.text().lower()
+        item_cat = item.data(Qt.ItemDataRole.UserRole + 1)  # str | None
 
+        if cat_id == "All":
+            cat_match = True
+        elif cat_id == "User Icons":
+            cat_match = item_cat == "User Icons"
+        else:
+            cat_match = item_cat == cat_id
+
+        text_match = (not text) or (text in name)
+        item.setHidden(not (cat_match and text_match))
+
+    def _apply_filters(self):
+        """Re-apply both filters to all items and update status label."""
+        visible = 0
         for i in range(self.list_widget.count()):
             item = self.list_widget.item(i)
-            if not item:
-                continue
-            if text in item.text().lower():
-                item.setHidden(False)
-                visible_count += 1
-            else:
-                item.setHidden(True)
-
-        self.status_label.setText(self.tr("{} icons visible").format(visible_count))
+            if item:
+                self._apply_filter_to_item(item)
+                if not item.isHidden():
+                    visible += 1
+        self.status_label.setText(self.tr("{} icons visible").format(visible))
 
     def _on_item_double_clicked(self, item):
         self.selected_icon_path = item.data(Qt.ItemDataRole.UserRole)
@@ -460,6 +838,110 @@ class IconPickerWidget(QDialog):
             self.accept()
         else:
             self.reject()
+
+    def _show_context_menu(self, pos):
+        """Show deletion menu for user-added icons."""
+        item = self.list_widget.itemAt(pos)
+        if not item:
+            return
+
+        item_cat = item.data(Qt.ItemDataRole.UserRole + 1)
+        if item_cat != "User Icons":
+            return
+
+        menu = QMenu(self)
+        delete_action = QAction(self.tr("Delete from Library"), self)
+        # SP_TrashIcon might not be available on all platforms, SP_DialogDiscardButton is a safe alternative
+        style = self.style()
+        if style:
+            delete_action.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_DialogDiscardButton))
+        delete_action.triggered.connect(self._delete_selected_icon)
+        menu.addAction(delete_action)
+        menu.exec(self.list_widget.mapToGlobal(pos))
+
+    def _is_icon_in_use(self, path: str) -> bool:
+        """Check if any profile uses this icon path."""
+        target_abs = os.path.abspath(resolve_icon_path(path) or path)
+        for p in self.all_profiles:
+            for item in p.items:
+                if item.icon_path:
+                    # Resolve to absolute for comparison
+                    resolved = resolve_icon_path(item.icon_path)
+                    if (
+                        resolved
+                        and os.path.exists(resolved)
+                        and os.path.abspath(resolved) == target_abs
+                    ):
+                        return True
+        return False
+
+    def _delete_selected_icon(self):
+        """Confirm and remove icon from both disk and history."""
+        item = self.list_widget.currentItem()
+        if not item:
+            return
+
+        path = item.data(Qt.ItemDataRole.UserRole)
+        target_abs = os.path.abspath(resolve_icon_path(path) or path)
+
+        # Check if in use
+        if self._is_icon_in_use(path):
+            reply = QMessageBox.warning(
+                self,
+                self.tr("Icon in Use"),
+                self.tr(
+                    "This icon is currently assigned to one or more menu items.\n\n"
+                    "If you delete it, those items will lose their icon image. "
+                    "Are you sure you want to proceed?"
+                ),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+        else:
+            reply = QMessageBox.question(
+                self,
+                self.tr("Delete Icon"),
+                self.tr("Are you sure you want to delete this icon from your library?"),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            remove_from_icon_history(path)
+
+            # Clean up all profile items (In-place update of references)
+            for p in self.all_profiles:
+                for pi in p.items:
+                    if pi.icon_path:
+                        resolved_pi = resolve_icon_path(pi.icon_path)
+                        if resolved_pi and os.path.abspath(resolved_pi) == target_abs:
+                            pi.icon_path = None
+
+            # Clean up parent's current state if it's an ItemEditorDialog editing this icon
+            parent = self.parent()
+            while parent:
+                if hasattr(parent, "icon_path"):
+                    parent_resolved = (
+                        resolve_icon_path(parent.icon_path) if parent.icon_path else None
+                    )
+                    if parent_resolved and os.path.abspath(parent_resolved) == target_abs:
+                        parent.icon_path = None
+                        if hasattr(parent, "_update_icon_preview"):
+                            parent._update_icon_preview()
+                parent = parent.parent()
+
+            # Remove from UI list
+            self.list_widget.takeItem(self.list_widget.row(item))
+            self._apply_filters()
+
+    def keyPressEvent(self, event):
+        """Handle Delete key for quick removal."""
+        if event.key() == Qt.Key.Key_Delete:
+            item = self.list_widget.currentItem()
+            if item and item.data(Qt.ItemDataRole.UserRole + 1) == "User Icons":
+                self._delete_selected_icon()
+                return
+        super().keyPressEvent(event)
 
 
 class FlowLayout(QLayout):
@@ -683,18 +1165,18 @@ class AppPickerDialog(QDialog):
         self.selected_app = None
         self._refresh_list()
 
-    def _refresh_list(self):
+    def _refresh_list(self) -> None:
         self.table.clear()
-        from src.core.win32_input import get_open_windows
+        try:
+            from src.core.win32_input import get_open_windows
 
-        windows = get_open_windows()
-
-        for exe, title in windows:
-            exe_item = QTreeWidgetItem([exe, title])
-            # Store the preferred value (exe if available, else title)
-            val = exe if exe else title
-            exe_item.setData(0, Qt.ItemDataRole.UserRole, val)
-            self.table.addTopLevelItem(exe_item)
+            windows = get_open_windows()
+            for exe_name, title in windows:
+                item = QTreeWidgetItem([exe_name, title])
+                item.setData(0, Qt.ItemDataRole.UserRole, exe_name)
+                self.table.addTopLevelItem(item)
+        except Exception as e:
+            logger.error(f"Failed to list open windows: {e}")
 
     def accept(self):
         items = self.table.selectedItems()
@@ -753,26 +1235,14 @@ class PieItemWidget(QFrame):
         # Icon (if present)
         if item.icon_path:
             icon_label = QLabel()
-
-            # Use QSvgRenderer for high quality even in settings
-            pixmap = QPixmap(32, 32)
-            pixmap.fill(Qt.GlobalColor.transparent)
-
             resolved_path = resolve_icon_path(item.icon_path)
-            renderer = QSvgRenderer(resolved_path)
-            if renderer.isValid():
-                painter = QPainter(pixmap)
-                renderer.render(painter)
-                painter.end()
-
-                icon_label.setPixmap(
-                    pixmap.scaled(
-                        24,
-                        24,
-                        Qt.AspectRatioMode.KeepAspectRatio,
-                        Qt.TransformationMode.SmoothTransformation,
-                    )
-                )
+            pixmap = _render_icon_pixmap(resolved_path, 24)
+            if pixmap is not None:
+                icon_label.setPixmap(pixmap)
+                # Give icon a slight dark background for visibility of light icons
+                icon_label.setObjectName("pieItemIcon")
+                icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                icon_label.setFixedSize(28, 28)
                 layout.insertWidget(0, icon_label)
 
         self._update_style()
@@ -810,6 +1280,10 @@ class PieItemWidget(QFrame):
                 QLabel {{
                     color: {text_color};
                     background: transparent;
+                }}
+                QLabel#pieItemIcon {{
+                    background-color: {"rgba(30,30,30,0.4)" if dark else "rgba(30, 30, 30, 0.8)"};
+                    border-radius: 4px;
                 }}
             """)
             self.action_text.setStyleSheet(
@@ -934,9 +1408,11 @@ class ItemEditorDialog(QDialog):
         hook_control=None,
         used_colors: list[str] | None = None,
         trigger_key: str | None = None,
+        all_profiles: list[MenuProfile] | None = None,
     ):
         super().__init__(parent)
         self.item = item
+        self.all_profiles = all_profiles or []
         self.trigger_key = trigger_key
         self.icon_path = item.icon_path if item else None
         self.setWindowTitle("")  # Set in retranslateUi
@@ -990,25 +1466,44 @@ class ItemEditorDialog(QDialog):
 
         # Icon Selection
         icon_layout = QHBoxLayout()
-        self.icon_preview_lbl = QLabel()
-        self.icon_preview_lbl.setFixedSize(32, 32)
-        self.icon_preview_lbl.setStyleSheet("border: 1px dashed gray;")
-        self._update_icon_preview()
+        icon_layout.setSpacing(6)
 
-        self.btn_select_icon = QPushButton(self.tr("Select Icon"))
+        # Preview box — large enough to show both icons and "no icon" text
+        self.icon_preview_lbl = QLabel()
+        self.icon_preview_lbl.setFixedSize(48, 48)
+        self.icon_preview_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.icon_preview_lbl.setStyleSheet(
+            "background-color: #1e1e1e; border: 1px dashed rgba(128,128,128,0.6); border-radius: 4px;"
+            " color: rgba(128,128,128,0.8); font-size: 10px;"
+        )
+        # self._update_icon_preview() moved down to after preview_widget is created
+
+        # Buttons
+        self.btn_select_icon = QPushButton(self.tr("Browse..."))
+        self.btn_select_icon.setToolTip(self.tr("Choose an image file from disk"))
         self.btn_select_icon.clicked.connect(self.pick_icon)
-        self.btn_clear_icon = QPushButton("X")
-        self.btn_clear_icon.setFixedSize(24, 24)
+
+        self.btn_preset_icon = QPushButton(self.tr("Presets / Recent..."))
+        self.btn_preset_icon.setToolTip(
+            self.tr("Pick from built-in presets or recently used icons")
+        )
+        self.btn_preset_icon.clicked.connect(self.pick_preset_icon)
+
+        self.btn_clear_icon = QPushButton(self.tr("Clear"))
+        self.btn_clear_icon.setToolTip(self.tr("Remove icon"))
+        self.btn_clear_icon.setEnabled(bool(self.icon_path))
         self.btn_clear_icon.clicked.connect(self.clear_icon)
 
+        btn_icon_group = QHBoxLayout()
+        btn_icon_group.setSpacing(4)
+        btn_icon_group.addWidget(self.btn_select_icon)
+        btn_icon_group.addWidget(self.btn_preset_icon)
+        btn_icon_group.addWidget(self.btn_clear_icon)
+
         icon_layout.addWidget(self.icon_preview_lbl)
-        icon_layout.addWidget(self.btn_select_icon)
-
-        self.btn_preset_icon = QPushButton(self.tr("Presets"))
-        self.btn_preset_icon.clicked.connect(self.pick_preset_icon)
-        icon_layout.addWidget(self.btn_preset_icon)
-
-        icon_layout.addWidget(self.btn_clear_icon)
+        icon_layout.addSpacing(4)
+        icon_layout.addLayout(btn_icon_group)
+        icon_layout.addStretch()
 
         self.lbl_icon = QLabel()
         form_layout.addRow(self.lbl_icon, icon_layout)
@@ -1041,7 +1536,7 @@ class ItemEditorDialog(QDialog):
         preview_container.addWidget(self.preview_widget, 0, Qt.AlignmentFlag.AlignCenter)
         main_h_layout.addLayout(preview_container, 1)
 
-        self._update_preview()
+        self._update_icon_preview()  # This will also call _update_preview()
         self.retranslateUi()
 
     def retranslateUi(self):
@@ -1058,7 +1553,16 @@ class ItemEditorDialog(QDialog):
         self.cancel_btn.setText(self.tr("Cancel"))
         self.lbl_preview.setText(self.tr("Preview"))
 
-        # Update placeholders if needed
+        self.btn_select_icon.setText(self.tr("Browse..."))
+        self.btn_select_icon.setToolTip(self.tr("Choose an image file from disk"))
+        self.btn_preset_icon.setText(self.tr("Presets / Recent..."))
+        self.btn_preset_icon.setToolTip(
+            self.tr("Pick from built-in presets or recently used icons")
+        )
+        self.btn_clear_icon.setText(self.tr("Clear"))
+        self.btn_clear_icon.setToolTip(self.tr("Remove icon"))
+
+        # Sync the circular visualization preview for all cases
         self._update_preview()
 
     def _get_next_auto_color(self) -> str:
@@ -1098,7 +1602,9 @@ class ItemEditorDialog(QDialog):
     def _update_preview(self):
         label = self.label_edit.text() or "サンプル"
         # For preview, we show a dummy menu with 4 items including the current one
-        temp_item = PieSlice(label=label, key="", color=self.current_color)
+        temp_item = PieSlice(
+            label=label, key="", color=self.current_color, icon_path=self.icon_path
+        )
         placeholder = PieSlice(label="", key="", color="#444444")
         self.preview_widget.update_items([temp_item, placeholder, placeholder, placeholder])
 
@@ -1122,18 +1628,35 @@ class ItemEditorDialog(QDialog):
             self._update_preview()
 
     def pick_icon(self):
+        # Default to Pictures folder
+        pics = QStandardPaths.standardLocations(QStandardPaths.StandardLocation.PicturesLocation)
+        initial_dir = pics[0] if pics else ""
+
+        # If we have an existing icon NOT in the internal user_icons dir,
+        # we can follow its directory. Otherwise, stick to Pictures.
+        if self.icon_path and os.path.exists(self.icon_path):
+            current_abs = os.path.abspath(self.icon_path)
+            user_icons_abs = os.path.abspath(config.USER_ICONS_DIR)
+            if not current_abs.startswith(user_icons_abs):
+                initial_dir = os.path.dirname(self.icon_path)
+
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             self.tr("Select Icon"),
-            "",
+            initial_dir,
             self.tr("Image Files (*.png *.jpg *.jpeg *.ico *.svg);;All Files (*)"),
         )
         if file_path:
-            self.icon_path = file_path
+            # Assetize icon and update current path
+            history = add_to_icon_history(file_path)
+            if history:
+                self.icon_path = history[0]
+            else:
+                self.icon_path = file_path
             self._update_icon_preview()
 
     def pick_preset_icon(self):
-        dialog = IconPickerWidget(self)
+        dialog = IconPickerWidget(self, all_profiles=self.all_profiles)
         if dialog.exec():
             self.icon_path = dialog.selected_icon_path
             self._update_icon_preview()
@@ -1144,29 +1667,33 @@ class ItemEditorDialog(QDialog):
 
     def _update_icon_preview(self):
         if self.icon_path:
-            # Use QSvgRenderer for preview
-            pixmap = QPixmap(64, 64)
-            pixmap.fill(Qt.GlobalColor.transparent)
-
             resolved_path = resolve_icon_path(self.icon_path)
-            renderer = QSvgRenderer(resolved_path)
-            if renderer.isValid():
-                painter = QPainter(pixmap)
-                renderer.render(painter)
-                painter.end()
-
+            pixmap = _render_icon_pixmap(resolved_path, 48)
+            if pixmap is not None:
+                # Scale to fit inside 48x48 while keeping aspect ratio
                 self.icon_preview_lbl.setPixmap(
                     pixmap.scaled(
-                        32,
-                        32,
+                        44,
+                        44,
                         Qt.AspectRatioMode.KeepAspectRatio,
                         Qt.TransformationMode.SmoothTransformation,
                     )
                 )
-                return
-
-        self.icon_preview_lbl.clear()
-        self.icon_preview_lbl.setText(self.tr("No Icon"))
+                self.icon_preview_lbl.setToolTip(self.icon_path)
+                if btn := getattr(self, "btn_clear_icon", None):
+                    btn.setEnabled(True)
+            else:
+                self.icon_preview_lbl.clear()
+                self.icon_preview_lbl.setText(self.tr("No\nIcon"))
+                self.icon_preview_lbl.setToolTip("")
+                if btn := getattr(self, "btn_clear_icon", None):
+                    btn.setEnabled(False)
+        else:
+            self.icon_preview_lbl.clear()
+            self.icon_preview_lbl.setText(self.tr("No\nIcon"))
+            self.icon_preview_lbl.setToolTip("")
+            if btn := getattr(self, "btn_clear_icon", None):
+                btn.setEnabled(False)
 
     def save(self):
         label = self.label_edit.text().strip()
@@ -1232,7 +1759,6 @@ class SettingsWindow(QWidget):
         self.setLayout(main_layout)
 
         # --- Sidebar (Profile List) ---
-        # --- Sidebar (Profile List) ---
         sidebar = QVBoxLayout()
         self.lbl_profiles = QLabel()
         sidebar.addWidget(self.lbl_profiles)
@@ -1262,7 +1788,7 @@ class SettingsWindow(QWidget):
 
         # Trigger Key
         # Trigger Key
-        self.group_trigger = QGroupBox()  # Renamed from group_trigger
+        self.group_trigger = QGroupBox()
         trigger_layout = QFormLayout()
         self.trigger_input = KeySequenceEdit()
         self.trigger_input.textChanged.connect(self.on_trigger_changed)
@@ -1306,7 +1832,7 @@ class SettingsWindow(QWidget):
         menu_layout.addWidget(self.group_trigger)
 
         # Menu Items List
-        self.group_items = QGroupBox()  # Added GroupBox for items
+        self.group_items = QGroupBox()
         self.group_items.setStyleSheet("QGroupBox { border: none; }")
         group_items_layout = QVBoxLayout()
 
@@ -1327,13 +1853,12 @@ class SettingsWindow(QWidget):
         group_items_layout.addWidget(self.scroll_area)
 
         # Buttons
-        # Buttons
-        item_btns = QHBoxLayout()  # Renamed from btn_layout
-        self.btn_add_i = QPushButton("Add Item")  # Renamed from btn_add
+        item_btns = QHBoxLayout()
+        self.btn_add_i = QPushButton("Add Item")
         self.btn_add_i.clicked.connect(self.add_item)
-        self.btn_edit_i = QPushButton("Edit")  # Renamed from btn_edit
-        self.btn_edit_i.clicked.connect(self.edit_item)  # Connected to edit_item
-        self.btn_del_i = QPushButton("Remove")  # Renamed from btn_remove
+        self.btn_edit_i = QPushButton("Edit")
+        self.btn_edit_i.clicked.connect(self.edit_item)
+        self.btn_del_i = QPushButton("Remove")
         self.btn_del_i.clicked.connect(self.remove_item)
 
         btn_reorder = QHBoxLayout()
@@ -1521,7 +2046,7 @@ class SettingsWindow(QWidget):
         self._update_scale_visibility()
 
         # Bottom Save
-        self.btn_save = QPushButton("Save & Apply")  # Renamed from btn_save
+        self.btn_save = QPushButton("Save & Apply")
         self.btn_save.setFixedHeight(45)
         self._apply_save_btn_style()  # Re-apply style
         self.btn_save.clicked.connect(self.save_all)  # Connected to save_all
@@ -1680,11 +2205,11 @@ class SettingsWindow(QWidget):
     def _apply_theme(self):
         dark = is_dark_mode()
 
-        main_bg = "#252525" if dark else "#f6f8fa"
+        main_bg = "#1e1e1e" if dark else "#ffffff"
         text_color = "#e0e0e0" if dark else "#24292f"
-        card_bg = "#333" if dark else "#ffffff"
-        border_clr = "#444" if dark else "#d0d7de"
-        btn_bg = "#3d3d3d" if dark else "#f3f4f6"
+        card_bg = "#252526" if dark else "#f6f8fa"
+        border_clr = "#3c3c3c" if dark else "#e1e4e8"
+        btn_bg = "#333333" if dark else "#f3f4f6"
         tab_inactive = "#2d2d2d" if dark else "#ebf0f4"
         scroll_bg = "#1e1e1e" if dark else "#ffffff"
 
@@ -1784,8 +2309,8 @@ class SettingsWindow(QWidget):
         self.profiles, self.settings = config.load_config()  # Load all profiles and global settings
         self.action_delay_spin.setValue(self.settings.action_delay_ms)
         self.overlay_size_spin.setValue(self.settings.overlay_size)
-        self.menu_opacity_slider.setValue(getattr(self.settings, "menu_opacity", 80))
-        self.preview_widget.update_opacity(getattr(self.settings, "menu_opacity", 80))
+        self.menu_opacity_slider.setValue(self.settings.menu_opacity)
+        self.preview_widget.update_opacity(self.settings.menu_opacity)
         self.icon_size_slider.setValue(self.settings.icon_size)
         self.text_size_slider.setValue(self.settings.text_size)
         self.show_animations_checkbox.setChecked(self.settings.show_animations)
@@ -1986,10 +2511,16 @@ class SettingsWindow(QWidget):
             hook_control=self.hook_control,
             used_colors=used_colors,
             trigger_key=current_trigger,
+            all_profiles=self.profiles,
         )
-        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.result_item:
+        dialog.exec()
+        if dialog.result_item:
             self.profiles[self.current_profile_idx].items.append(dialog.result_item)
-            self.update_item_list(self.profiles[self.current_profile_idx].items)
+            self.set_dirty()
+
+        # Even if cancelled, icons might have been deleted from library
+        self.update_item_list(self.profiles[self.current_profile_idx].items)
+        if self.profiles[self.current_profile_idx].items:
             self.on_item_clicked(self.item_widgets[-1])  # Select the newly added item
 
     def edit_item(self):  # Renamed from edit_selected_item
@@ -2008,12 +2539,20 @@ class SettingsWindow(QWidget):
         current_trigger = self.trigger_input.text()
 
         dialog = ItemEditorDialog(
-            self, item_to_edit, hook_control=self.hook_control, trigger_key=current_trigger
+            self,
+            item_to_edit,
+            hook_control=self.hook_control,
+            trigger_key=current_trigger,
+            all_profiles=self.profiles,
         )
-        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.result_item:
+        dialog.exec()
+        if dialog.result_item:
             self.profiles[self.current_profile_idx].items[idx] = dialog.result_item
-            self.update_item_list(self.profiles[self.current_profile_idx].items)
-            self.on_item_clicked(self.item_widgets[idx])  # Re-select the edited item
+            self.set_dirty()
+
+        # Even if cancelled, icons might have been deleted from library
+        self.update_item_list(self.profiles[self.current_profile_idx].items)
+        self.on_item_clicked(self.item_widgets[idx])  # Re-select the edited item
 
     def remove_item(self):
         if not self.selected_item_widget:
@@ -2023,6 +2562,7 @@ class SettingsWindow(QWidget):
             idx = self.item_widgets.index(self.selected_item_widget)
             self.profiles[self.current_profile_idx].items.pop(idx)
             self.update_item_list(self.profiles[self.current_profile_idx].items)
+            self.set_dirty()
         except (RuntimeError, ValueError):
             self.selected_item_widget = None
             # Refresh list anyway if we can't find the widget but one was 'selected'
@@ -2041,6 +2581,7 @@ class SettingsWindow(QWidget):
                 )
                 self.update_item_list(current_items)
                 self.on_item_clicked(self.item_widgets[idx - 1])
+                self.set_dirty()
         except (RuntimeError, ValueError):
             self.selected_item_widget = None
 
@@ -2057,6 +2598,7 @@ class SettingsWindow(QWidget):
                 )
                 self.update_item_list(current_items)
                 self.on_item_clicked(self.item_widgets[idx + 1])
+                self.set_dirty()
         except (RuntimeError, ValueError):
             self.selected_item_widget = None
 

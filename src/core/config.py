@@ -5,8 +5,11 @@ It defines the core data structures (PieSlice, AppSettings, MenuProfile)
 and provides functions to persist them to disk.
 """
 
+import hashlib
 import json
 import os
+import shutil
+import tempfile
 from dataclasses import asdict, dataclass, field
 
 from src.core.logger import get_logger
@@ -21,6 +24,9 @@ APP_NAME = "MixedBerryPie"
 APPDATA = os.getenv("LOCALAPPDATA", os.path.expanduser("~"))
 CONFIG_DIR = os.path.join(APPDATA, APP_NAME)
 CONFIG_FILE = os.path.join(CONFIG_DIR, "menu_config.json")
+ICON_HISTORY_FILE = os.path.join(CONFIG_DIR, "icon_history.json")
+USER_ICONS_DIR = os.path.join(CONFIG_DIR, "user_icons")
+ICON_HISTORY_MAX = 100
 
 # Legacy Config Path (for migration)
 LEGACY_CONFIG_FILE = os.path.join(PROJECT_ROOT, "menu_config.json")
@@ -38,6 +44,147 @@ def _ensure_config_dir() -> None:
             logger.info(f"Created config directory: {CONFIG_DIR}")
         except Exception as e:
             logger.error(f"Failed to create config directory: {e}")
+
+
+def load_icon_history() -> list[str]:
+    """Load the icon usage history from disk.
+
+    Returns:
+        List of absolute icon paths, most recent first. Empty list on error.
+    """
+    _ensure_config_dir()
+    if not os.path.exists(ICON_HISTORY_FILE):
+        return []
+    try:
+        with open(ICON_HISTORY_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, list):
+            return [p for p in data if isinstance(p, str)]
+    except Exception as e:
+        logger.warning(f"Could not load icon history: {e}")
+    return []
+
+
+def save_icon_history(paths: list[str]) -> None:
+    """Persist the icon history list to disk (capped at ICON_HISTORY_MAX)."""
+    _ensure_config_dir()
+    try:
+        with open(ICON_HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(paths[:ICON_HISTORY_MAX], f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        logger.warning(f"Could not save icon history: {e}")
+
+
+def add_to_icon_history(path: str) -> list[str]:
+    """Assetize icon and prepend to history.
+
+    If the icon is external, it's copied to the user_icons directory.
+    Deduplicates and persists to disk.
+
+    Args:
+        path: Absolute path to the icon file.
+
+    Returns:
+        Updated history list.
+    """
+    if not os.path.exists(path):
+        return load_icon_history()
+
+    _ensure_config_dir()
+    if not os.path.exists(USER_ICONS_DIR):
+        os.makedirs(USER_ICONS_DIR, exist_ok=True)
+
+    final_path = path
+
+    # If already in USER_ICONS_DIR, no need to copy
+    # Use os.sep suffix to prevent path-traversal false positives (e.g. user_icons_evil/)
+    _user_icons_abs = os.path.abspath(USER_ICONS_DIR) + os.sep
+    if not os.path.abspath(path).startswith(_user_icons_abs):
+        # Copy external icon to user_icons dir
+        base_name = os.path.basename(path)
+        dest_path = os.path.join(USER_ICONS_DIR, base_name)
+
+        # Hashing-based duplicate check (SHA-256) — chunked to avoid OOM on large files
+        try:
+            sha = hashlib.sha256()
+            with open(path, "rb") as bf:
+                for chunk in iter(lambda: bf.read(65536), b""):
+                    sha.update(chunk)
+            src_hash = sha.hexdigest()
+
+            # Check existing files in user_icons
+            for f in os.listdir(USER_ICONS_DIR):
+                f_path = os.path.join(USER_ICONS_DIR, f)
+                if os.path.isfile(f_path):
+                    with open(f_path, "rb") as obf:
+                        if hashlib.sha256(obf.read()).hexdigest() == src_hash:
+                            logger.info(f"Duplicate content found, reusing: {f_path}")
+                            final_path = f_path
+                            break
+
+            if final_path == path:  # Not found in loop
+                # Handle name collisions for different content
+                if os.path.exists(dest_path):
+                    name, ext = os.path.splitext(base_name)
+                    counter = 1
+                    while os.path.exists(os.path.join(USER_ICONS_DIR, f"{name}_{counter}{ext}")):
+                        counter += 1
+                    dest_path = os.path.join(USER_ICONS_DIR, f"{name}_{counter}{ext}")
+
+                if os.path.abspath(path) != os.path.abspath(dest_path):
+                    shutil.copy2(path, dest_path)
+                    logger.info(f"Assetized icon: {path} -> {dest_path}")
+                final_path = dest_path
+        except Exception as e:
+            logger.error(f"Failed to assetize icon: {e}")
+            # Fallback to original path if copy fails
+
+    history = load_icon_history()
+    # Normalize final_path to relative if it's in USER_ICONS_DIR
+    _user_icons_abs = os.path.abspath(USER_ICONS_DIR) + os.sep
+    if os.path.abspath(final_path).startswith(_user_icons_abs):
+        final_path = os.path.relpath(final_path, CONFIG_DIR).replace("\\", "/")
+
+    # Remove duplicates (comparing absolute paths internally for reliability)
+    def to_abs(p):
+        if not os.path.isabs(p) and p.startswith("user_icons"):
+            return os.path.abspath(os.path.join(CONFIG_DIR, p))
+        return os.path.abspath(p)
+
+    target_abs = to_abs(final_path)
+    history = [p for p in history if to_abs(p) != target_abs]
+
+    history.insert(0, final_path)
+    history = history[:ICON_HISTORY_MAX]
+    save_icon_history(history)
+    return history
+
+
+def remove_from_icon_history(path: str) -> list[str]:
+    """Remove an icon from history and delete its file if it's in user_icons.
+
+    Args:
+        path: Absolute path to the icon to remove.
+
+    Returns:
+        Updated history list.
+    """
+    history = load_icon_history()
+    new_history = [p for p in history if os.path.abspath(p) != os.path.abspath(path)]
+
+    if len(new_history) != len(history):
+        save_icon_history(new_history)
+        # If the file is in our managed directory, delete it
+        _user_icons_abs = os.path.abspath(USER_ICONS_DIR) + os.sep
+        if os.path.abspath(path).startswith(_user_icons_abs):
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+                    logger.info(f"Deleted user icon asset: {path}")
+            except Exception as e:
+                logger.error(f"Failed to delete icon asset: {e}")
+
+    return new_history
 
 
 @dataclass
@@ -158,12 +305,21 @@ def load_config() -> tuple[list[MenuProfile], AppSettings]:
 
             # Load app settings first
             settings_data = data.get("settings", {})
-            # Only keep valid fields
-            valid_fields = {
-                k: v for k, v in settings_data.items() if k in AppSettings.__dataclass_fields__
-            }
+            # Only keep valid fields and validate types
+            valid_fields = {}
+            default_settings = AppSettings()
+            for k, v in settings_data.items():
+                if k in AppSettings.__dataclass_fields__:
+                    # Simple type validation against default values
+                    default_v = getattr(default_settings, k)
+                    if isinstance(v, type(default_v)):
+                        valid_fields[k] = v
+                    else:
+                        logger.warning(
+                            f"Setting '{k}' has invalid type {type(v)}, using default {type(default_v)}"
+                        )
             settings = AppSettings(**valid_fields)
-            logger.info(f"Loaded settings: {settings}")
+            logger.info(f"Loaded validated settings: {settings}")
 
             profiles = []
             if schema_version < 3:
@@ -240,14 +396,20 @@ def save_config(profiles: list[MenuProfile], settings: AppSettings | None = None
             ],
             "settings": asdict(settings),
         }
-        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+        # Atomic write using a temporary file
+        fd, temp_path = tempfile.mkstemp(dir=CONFIG_DIR, text=True)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            # Atomic replace
+            os.replace(temp_path, CONFIG_FILE)
+        except Exception as e:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            raise e
+
         logger.info("Configuration saved successfully")
         return True
     except Exception as e:
         logger.error(f"Error saving config: {e}")
         return False
-
-
-# Load on module import
-PROFILES, APP_SETTINGS = load_config()

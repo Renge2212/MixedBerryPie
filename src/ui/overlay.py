@@ -318,7 +318,7 @@ class PieOverlay(QWidget):
 
             color = QColor(item.color)
             # Make it slightly transparent for glass/overlay effect based on settings
-            opacity_percent = getattr(self.settings, "menu_opacity", 80)
+            opacity_percent = self.settings.menu_opacity
             color.setAlpha(int(255 * opacity_percent / 100))
 
             is_selected = i == self.selected_index

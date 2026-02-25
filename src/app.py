@@ -4,6 +4,7 @@ import shlex
 import signal
 import subprocess
 import sys
+import threading
 import time
 import webbrowser
 from typing import Any, cast
@@ -329,16 +330,24 @@ class MixedBerryPieApp(QObject):
         """Execute the selected action after a brief delay."""
         app_logger.info(f"Queuing action: {item_key} (type: {action_type})")
         delay_ms = self.settings.action_delay_ms
-        QTimer.singleShot(delay_ms, lambda: self._do_execute(item_key, action_type))
+        QTimer.singleShot(
+            delay_ms,
+            lambda: threading.Thread(
+                target=self._do_execute, args=(item_key, action_type), daemon=True
+            ).start(),
+        )
 
     def _do_execute(self, value: str, action_type: str) -> None:
-        """Internal method to execute actions."""
+        """Internal method to execute actions (runs in a worker thread)."""
         app_logger.info(f"Executing action: {value} ({action_type})")
         try:
             if action_type == "url":
                 webbrowser.open(value)
             elif action_type == "cmd":
                 args = shlex.split(value)
+                if not args:
+                    app_logger.warning("Empty command value, skipping execution")
+                    return
                 subprocess.Popen(args, shell=False)
             else:
                 # Release modifiers to prevent leakage
@@ -349,7 +358,7 @@ class MixedBerryPieApp(QObject):
                 app_logger.debug(f"Sending keys: {parts} (parsed: {keys_to_press})")
 
                 # Sequential key handling with safety delays
-                delay_sec = getattr(self.settings, "key_sequence_delay_ms", 0) / 1000.0
+                delay_sec = self.settings.key_sequence_delay_ms / 1000.0
                 for k in keys_to_press:
                     send_pynput_key_safely(k, True)
                     if delay_sec > 0:
@@ -365,7 +374,6 @@ class MixedBerryPieApp(QObject):
         except Exception as e:
             error_msg = f"Failed to execute action '{value}': {e!s}"
             app_logger.error(error_msg)
-            QMessageBox.warning(None, "Action Execution Error", error_msg)
 
     def run(self) -> None:
         """Start the application event loop."""
