@@ -58,6 +58,8 @@ class PieOverlay(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        # We don't want it to steal focus if clicked globally
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
 
         # Settings
         self.settings = settings or AppSettings()
@@ -98,6 +100,13 @@ class PieOverlay(QWidget):
         self._highlight_paths_cache: list[QPainterPath] = []
         self._item_font: QFont | None = None
         self._micro_font: QFont | None = None
+
+        # Initialize the widget to cover the primary screen and show it.
+        # Its visibility will be controlled by the `is_visible` flag.
+        screen = QApplication.primaryScreen()
+        if screen:
+            self.setGeometry(screen.geometry())
+        self.show()
 
     def update_settings(self, settings: AppSettings) -> None:
         """Update overlay settings and recalculate dimensions.
@@ -160,34 +169,24 @@ class PieOverlay(QWidget):
 
         logger.info(f"Show menu called. Animations enabled: {self.settings.show_animations}")
 
-        # Ensure dimensions match the current depth
+        # Update dimensions and get screen geometry
         self._update_dimensions()
 
-        cursor_pos = QCursor.pos()
-
-        # Full screen overlay
+        # Ensure the overlay covers the primary screen continuously
         screen = QApplication.primaryScreen()
         if screen:
             screen_rect = screen.geometry()
-            self.setGeometry(screen_rect)
-            # Center the menu drawing exactly at the cursor's coordinates relative to the screen
+            if self.geometry() != screen_rect:
+                self.setGeometry(screen_rect)
+
+            cursor_pos = QCursor.pos()
             self.center_pos = QPoint(
                 cursor_pos.x() - screen_rect.x(), cursor_pos.y() - screen_rect.y()
             )
-        else:
-            # Fallback if screen is somehow unavailable
-            # Add padding for the pop-out animation and outline safety
-            window_size = int(self.radius_outer * 2) + 60
-            self.resize(window_size, window_size)
-            self.center_pos = QPoint(self.width() // 2, self.height() // 2)
-            self.move(cursor_pos.x() - self.width() // 2, cursor_pos.y() - self.height() // 2)
 
         self.active_path = []
         self.is_visible = True
         self._is_in_center = False
-
-        # Ensure paths are calculated when showing
-        self._recalculate_paths()
 
         if self.settings.show_animations:
             self.animation_scale = 0.0
@@ -197,15 +196,15 @@ class PieOverlay(QWidget):
             self.animation_scale = 1.0
             self.is_animating = False
 
-        # Workaround for Windows DWM flashing the old window buffer:
-        # Make window transparent, show it, paint the new frame, then restore opacity.
-        self.setWindowOpacity(0.0)
-        self.show()
-        self.repaint()
-        self.setWindowOpacity(1.0)
+        # Make sure the window is visible at the OS level
+        if not self.isVisible():
+            self.show()
+
+        # Trigger a Qt paint event
+        self.update()
 
         self._poll_timer.start()
-        logger.debug(f"Overlay shown at {cursor_pos}")
+        logger.debug(f"Menu internal state shown at {self.center_pos}")
 
     def hide_menu(self, execute: bool = False) -> None:
         """Hide the overlay and optionally execute the selected action.
@@ -218,8 +217,10 @@ class PieOverlay(QWidget):
 
         self.is_visible = False
         self._poll_timer.stop()
-        self.hide()
         self.scale_timer.stop()
+
+        # Clear the menu visually but keep the transparent window alive
+        self.update()
 
         if execute and self.active_path:
             # Find the actual executed item by traversing the active path
