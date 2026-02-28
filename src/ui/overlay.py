@@ -443,6 +443,11 @@ class PieOverlay(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
+        # 0. Clear screen completely (fixes residual images/artifacts when translucent)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
+        painter.fillRect(self.rect(), Qt.GlobalColor.transparent)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+
         # 1. Background Dimming (fill entire widget/screen)
         if self.settings.dim_background:
             # We want a subtle dark overlay over everything before drawing the menu
