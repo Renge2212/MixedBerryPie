@@ -37,6 +37,9 @@ class PieOverlay(QWidget):
     """Transparent overlay widget for rendering the pie menu."""
 
     action_selected = pyqtSignal(str, str)  # key, action_type
+    slice_exited = pyqtSignal(object, int)  # PieSlice, index
+    center_hovered = pyqtSignal()
+    center_exited = pyqtSignal()
 
     def __init__(
         self, menu_items: list[PieSlice] | None = None, settings: AppSettings | None = None
@@ -61,9 +64,12 @@ class PieOverlay(QWidget):
         self.menu_items = menu_items or []
 
         # State
-        self.selected_index: int = -1
+        self.active_path: list[
+            int
+        ] = []  # List of indices representing the selected path [root_idx, child_idx, ...]
         self.center_pos = QPoint(0, 0)
         self.is_visible = False
+        self._is_in_center = False
 
         # Animation state
         self.scale_timer = QTimer(self)
@@ -105,15 +111,34 @@ class PieOverlay(QWidget):
         self._recalculate_paths()  # Rebuild static paths
         self.update()
 
+    def _get_max_depth(self, items: list[PieSlice], current_depth: int = 0) -> int:
+        """Calculate the maximum depth of the nested menu structure."""
+        max_d = current_depth
+        for item in items:
+            subs = getattr(item, "submenu_items", None)
+            if subs:
+                d = self._get_max_depth(subs, current_depth + 1)
+                if max_d < d:
+                    max_d = d
+        return max_d
+
     def _update_dimensions(self) -> None:
         """Recalculate radius and sizes based on settings."""
         size = self.settings.overlay_size
-        # Add padding for the pop-out animation (10px * 2 = 20px, plus safety)
-        self.resize(size + 40, size + 40)
-        self.center_pos = QPoint(self.width() // 2, self.height() // 2)
-
         self.radius_outer = size // 2
         self.radius_inner = int(self.radius_outer * 0.25)
+        # Thickness of additional concentric rings for submenus
+        self.ring_thickness = int(self.radius_outer * 0.5)
+        # Gap between rings to prevent overlap with selection highlight (10px highlight + 5px extra)
+        self.ring_gap = 15
+
+        max_depth = self._get_max_depth(self.menu_items) if hasattr(self, "menu_items") else 0
+        total_radius = self.radius_outer + (max_depth * (self.ring_thickness + self.ring_gap))
+
+        # Add padding for the pop-out animation and outline safety
+        window_size = int(total_radius * 2) + 60
+        self.resize(window_size, window_size)
+        self.center_pos = QPoint(self.width() // 2, self.height() // 2)
 
         if self.settings.auto_scale_with_menu:
             # Scale icon and text proportionally to menu size (base: 400px)
@@ -132,25 +157,8 @@ class PieOverlay(QWidget):
         self._micro_font = QFont("Segoe UI", 8, QFont.Weight.Bold)
 
     def _recalculate_paths(self) -> None:
-        """Pre-calculate and cache the QPainterPaths for all slices."""
-        self._slice_paths_cache.clear()
-        self._highlight_paths_cache.clear()
-
-        num_items = len(self.menu_items)
-        if num_items == 0:
-            return
-
-        angle_span = 360.0 / num_items
-        for i in range(num_items):
-            start_angle = -90 - (angle_span / 2) + (i * angle_span)
-
-            # Base slice path
-            base_path = self._create_slice_path(start_angle, angle_span, self.radius_outer)
-            self._slice_paths_cache.append(base_path)
-
-            # Highlight border path (slightly larger)
-            hl_path = self._create_slice_path(start_angle, angle_span, self.radius_outer + 10)
-            self._highlight_paths_cache.append(hl_path)
+        """Obsolete: Paths are now dynamically generated in _draw_layer to support concentric rings and submenus."""
+        pass
 
     def show_menu(self) -> None:
         """Show the overlay at the current mouse position with animation."""
@@ -160,18 +168,21 @@ class PieOverlay(QWidget):
 
         logger.info(f"Show menu called. Animations enabled: {self.settings.show_animations}")
 
+        # Ensure dimensions match the current depth
+        self._update_dimensions()
+
         cursor_pos = QCursor.pos()
         # Center the window on the cursor
         x = cursor_pos.x() - self.width() // 2
         y = cursor_pos.y() - self.height() // 2
         self.move(x, y)
 
-        self.selected_index = -1
+        self.active_path = []
         self.is_visible = True
+        self._is_in_center = False
 
         # Ensure paths are calculated when showing
-        if not self._slice_paths_cache or len(self._slice_paths_cache) != len(self.menu_items):
-            self._recalculate_paths()
+        self._recalculate_paths()
 
         if self.settings.show_animations:
             self.animation_scale = 0.0
@@ -200,12 +211,24 @@ class PieOverlay(QWidget):
         self.hide()
         self.scale_timer.stop()
 
-        if execute and self.selected_index != -1:
-            item = self.menu_items[self.selected_index]
-            # Emit signal instead of executing directly to decouple
-            self.action_selected.emit(item.key, item.action_type)
+        if execute and self.active_path:
+            # Find the actual executed item by traversing the active path
+            item: PieSlice | None = None
+            current_list = self.menu_items
+            for idx in self.active_path:
+                if 0 <= idx < len(current_list):
+                    item = current_list[idx]
+                    current_list = (
+                        item.submenu_items if getattr(item, "submenu_items", None) else []
+                    )
+                else:
+                    item = None
+                    break
 
-        self.selected_index = -1
+            if item:
+                self.action_selected.emit(item.key, item.action_type)
+
+        self.active_path = []
 
     def _update_scale_animation(self) -> None:
         """Update scale factor for entry animation."""
@@ -242,7 +265,7 @@ class PieOverlay(QWidget):
         Args:
             pos: Mouse position relative to the widget.
         """
-        if not self.is_visible:
+        if not self.is_visible or not self.menu_items:
             return
 
         dx = pos.x() - self.center_pos.x()
@@ -251,11 +274,15 @@ class PieOverlay(QWidget):
 
         # Dead zone: inside the inner ring → clear selection
         if distance < self.radius_inner:
-            self.selected_index = -1
+            if getattr(self, "_is_in_center", False) is False:
+                self._is_in_center = True
+                self.center_hovered.emit()
+            self.active_path = []
             return
 
-        # Outside outer radius is still valid — selection continues by angle direction
-        # (no early return here)
+        if getattr(self, "_is_in_center", False) is True:
+            self._is_in_center = False
+            self.center_exited.emit()
 
         # Calculate angle
         angle = math.atan2(dy, dx)
@@ -264,20 +291,140 @@ class PieOverlay(QWidget):
 
         # Convert to degrees (0-360)
         degrees = math.degrees(angle)
-
-        num_items = len(self.menu_items)
-        if num_items == 0:
-            return
-
-        angle_per_item = 360 / num_items
-
         # Adjust degrees so 0 is Up to match drawing logic
         adj_degrees = (degrees + 90) % 360
 
-        # Correct calculation:
-        # We need to shift by half a slice to align index changes with boundaries
-        index = int((adj_degrees + angle_per_item / 2) / angle_per_item) % num_items
-        self.selected_index = index
+        # Determine how deep we are based on distance
+        # Layer 0: radius_inner to radius_outer
+        # Layer 1: radius_outer to radius_outer + 1*ring_thickness
+        # Layer 2: radius_outer + 1*ring_thickness to radius_outer + 2*ring_thickness ...
+
+        # Base target layer determined by raw distance
+        raw_target_layer = 0
+        if distance > self.radius_outer:
+            raw_target_layer = 1 + int(
+                (distance - self.radius_outer) / (self.ring_thickness + self.ring_gap)
+            )
+
+        new_path: list[int] = []
+        current_items = self.menu_items
+
+        for layer in range(raw_target_layer + 1):
+            if not current_items:
+                break
+
+            num_items = len(current_items)
+            angle_span = 360.0 / num_items if layer == 0 else 180.0 / max(1, num_items)
+
+            if layer == 0:
+                hover_idx = int((adj_degrees + angle_span / 2) / angle_span) % num_items
+
+                locked_idx = self.active_path[0] if len(self.active_path) > 0 else -1
+                use_lock = False
+
+                if locked_idx != -1 and locked_idx < num_items and raw_target_layer > 0:
+                    locked_item = current_items[locked_idx]
+                    sub_items = getattr(locked_item, "submenu_items", [])
+                    if sub_items:
+                        c_angle = self._get_slice_center_angle(0, [locked_idx])
+                        sub_count = len(sub_items)
+                        t_span = (180.0 / max(1, sub_count)) * sub_count
+                        s_angle = c_angle - (t_span / 2)
+                        s_adj = (s_angle + 90) % 360
+                        r_angle = (adj_degrees - s_adj) % 360
+                        if r_angle > 180 and t_span <= 180:
+                            r_angle -= 360
+                        if 0 <= r_angle <= t_span:
+                            use_lock = True
+
+                current_idx = locked_idx if use_lock else hover_idx
+            else:
+                c_angle = self._get_slice_center_angle(layer - 1, new_path)
+                t_span = angle_span * num_items
+                s_angle = c_angle - (t_span / 2)
+                s_adj = (s_angle + 90) % 360
+                r_angle = (adj_degrees - s_adj) % 360
+                if r_angle > 180 and t_span <= 180:
+                    r_angle -= 360
+
+                if 0 <= r_angle <= t_span:
+                    hover_idx = int(r_angle / angle_span)
+                    if hover_idx >= num_items:
+                        hover_idx = num_items - 1
+                else:
+                    # Cursor is completely outside this fan!
+                    # Stop adding to path, leaving the selection at the parent layer.
+                    break
+
+                locked_idx = self.active_path[layer] if len(self.active_path) > layer else -1
+                use_lock = False
+
+                if locked_idx != -1 and locked_idx < num_items and raw_target_layer > layer:
+                    locked_item = current_items[locked_idx]
+                    sub_items = getattr(locked_item, "submenu_items", [])
+                    if sub_items:
+                        c_angle_next = self._get_slice_center_angle(layer, [*new_path, locked_idx])
+                        sub_count = len(sub_items)
+                        t_span_next = (180.0 / max(1, sub_count)) * sub_count
+                        s_angle_next = c_angle_next - (t_span_next / 2)
+                        s_adj_next = (s_angle_next + 90) % 360
+                        r_angle_next = (adj_degrees - s_adj_next) % 360
+                        if r_angle_next > 180 and t_span_next <= 180:
+                            r_angle_next -= 360
+                        if 0 <= r_angle_next <= t_span_next:
+                            use_lock = True
+
+                current_idx = locked_idx if use_lock else hover_idx
+
+            new_path.append(current_idx)
+            current_items = getattr(current_items[current_idx], "submenu_items", [])
+
+        self.active_path = new_path
+
+    def _get_slice_center_angle(self, depth: int, path: list[int]) -> float:
+        """Calculate the absolute center angle (in degrees, 0=Up) of a specific slice at depth."""
+        if not path or depth < 0 or depth >= len(path):
+            return 0.0
+
+        # Root layer
+        num_root = len(self.menu_items)
+        if num_root == 0:
+            return 0.0
+        root_span = 360.0 / num_root
+
+        # Center of 0th item starts at -90
+        center = -90.0 + (path[0] * root_span)
+
+        if depth == 0:
+            return center
+
+        # Traverse down manually to calculate offsets
+        current_list = (
+            self.menu_items[path[0]].submenu_items
+            if getattr(self.menu_items[path[0]], "submenu_items", None)
+            else []
+        )
+        for depth_idx in range(1, depth + 1):
+            if not current_list:
+                break
+            num_children = len(current_list)
+            # Fan span logic
+            fan_span = min(180.0, 60.0 * num_children)
+            slice_span = fan_span / num_children
+
+            # The fan is centered exactly on the previous center
+            start_angle = center - (fan_span / 2)
+            # The center of the specific child
+            child_center = start_angle + (path[depth_idx] * slice_span) + (slice_span / 2)
+
+            center = child_center
+            current_list = (
+                current_list[path[depth_idx]].submenu_items
+                if getattr(current_list[path[depth_idx]], "submenu_items", None)
+                else []
+            )
+
+        return center % 360
 
     def paintEvent(self, event):
         """Paint the pie menu.
@@ -302,96 +449,181 @@ class PieOverlay(QWidget):
         if num_items == 0:
             return
 
-        angle_span = 360.0 / num_items
+        # Draw layers based on active path
+        self._draw_layer(painter, 0, self.menu_items, self.active_path)
 
-        for i, item in enumerate(self.menu_items):
-            # Calculate angles
-            # Start at -90 (top) and rotate clockwise
-            # Center of first item should be at -90
-            start_angle = -90 - (angle_span / 2) + (i * angle_span)
+    def _draw_layer(self, painter: QPainter, depth: int, items: list[PieSlice], path: list[int]):
+        """Recursively draw a layer of the pie menu."""
+        if not items:
+            return
 
-            # Draw Slice from cache if available
-            if i < len(self._slice_paths_cache):
-                path = self._slice_paths_cache[i]
-            else:
-                path = self._create_slice_path(start_angle, angle_span, self.radius_outer)
+        num_items = len(items)
+        # Root is 360, children fan out up to 180 depending on count
+        angle_span = 360.0 / num_items if depth == 0 else min(180.0, 60.0 * num_items) / num_items
 
-            color = QColor(item.color)
-            # Make it slightly transparent for glass/overlay effect based on settings
-            opacity_percent = self.settings.menu_opacity
-            color.setAlpha(int(255 * opacity_percent / 100))
+        # Calculate start angle for this layer
+        if depth == 0:
+            start_angle_base = -90 - (angle_span / 2)  # First item centered at -90 (Up)
+        else:
+            center_angle_of_parent = self._get_slice_center_angle(depth - 1, path)
+            total_fan_span = angle_span * num_items
+            start_angle_base = center_angle_of_parent - (total_fan_span / 2)
 
-            is_selected = i == self.selected_index
+        # Radii for this layer
+        if depth == 0:
+            rad_inner = self.radius_inner
+            rad_outer = self.radius_outer
+        else:
+            rad_inner = (
+                self.radius_outer + (depth - 1) * self.ring_thickness + (depth * self.ring_gap)
+            )
+            rad_outer = rad_inner + self.ring_thickness
 
+        # The selected index at this depth (if any)
+        selected_idx = path[depth] if depth < len(path) else -1
+
+        for i, item in enumerate(items):
+            start_angle = start_angle_base + (i * angle_span)
+
+            is_selected = i == selected_idx
+
+            # Make selected slice slightly larger
+            slice_rad_inner = rad_inner
+            slice_rad_outer = rad_outer
             if is_selected:
-                color = color.lighter(130)  # Highlight
-                # Pop out effect could be done here by translating painter
+                slice_rad_outer += 8  # Pop outwards
+                slice_rad_inner -= 4  # Pop inwards slightly
 
-            painter.setBrush(QBrush(color))
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawPath(path)
+            # Create Modern Pizza slice path with a constant pixel gap
+            path_obj = self._create_slice_path(
+                start_angle, angle_span, slice_rad_inner, slice_rad_outer, gap_px=6.0
+            )
 
-            # Draw Border if selected
-            if self.selected_index == i:
-                # Highlight selected item from cache if available
-                if i < len(self._highlight_paths_cache):
-                    path = self._highlight_paths_cache[i]
-                else:
-                    path = self._create_slice_path(
-                        angle_start=start_angle,
-                        angle_span=angle_span,
-                        radius=self.radius_outer + 10,
-                    )
+            base_color = QColor(item.color)
 
-                painter.setBrush(QBrush(QColor(item.color)))
-                pen_width = 2
-                painter.setPen(
-                    QPen(
-                        QColor(255, 255, 255, 200),
-                        pen_width,
-                        Qt.PenStyle.SolidLine,
-                    )
-                )
-                painter.drawPath(path)
+            # Use original opacity from settings
+            opacity_percent = self.settings.menu_opacity
+            base_color.setAlpha(int(255 * opacity_percent / 100))
+
+            # 1. Drop Shadow (Soft dark underlay to elevate the slice)
+            shadow_path = path_obj.translated(0, 4)
+            painter.fillPath(shadow_path, QColor(0, 0, 0, 60))
+
+            # 2. Slice Fill
+            if is_selected:
+                # Selected: Brighter fill
+                fill_color = QColor(item.color).lighter(130)
+                fill_color.setAlpha(int(255 * opacity_percent / 100))
+                painter.fillPath(path_obj, QBrush(fill_color))
+
+                # Glow/Border outline in the item's color
+                glow_color = QColor(item.color)
+                glow_color.setAlpha(200)
+                glow_pen = QPen(glow_color, 3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+                glow_pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+                painter.strokePath(path_obj, glow_pen)
+            else:
+                # Unselected: Original item color
+                painter.fillPath(path_obj, QBrush(base_color))
 
             # Draw Label and Icon
-            self._draw_item_content(painter, item, start_angle + angle_span / 2)
+            self._draw_item_content(
+                painter, item, start_angle + angle_span / 2, rad_inner, rad_outer
+            )
 
-    def _create_slice_path(self, angle_start, angle_span, radius) -> QPainterPath:
-        # Create painter path for a single pie slice
+        # Recursively draw the next layer if an item is selected and has submenus
+        if selected_idx != -1 and selected_idx < num_items:
+            selected_item = items[selected_idx]
+            if getattr(selected_item, "submenu_items", None):
+                self._draw_layer(painter, depth + 1, selected_item.submenu_items, path)
+
+    def _create_slice_path(
+        self,
+        angle_start: float,
+        angle_span: float,
+        rad_inner: float,
+        rad_outer: float,
+        gap_px: float = 0.0,
+    ) -> QPainterPath:
+        """Create painter path for a single pie slice with a constant pixel gap between slices."""
+        if angle_span <= 0:
+            angle_span = 0.1
+
+        # Calculate angle reductions based on the desired physical pixel gap at both inner and outer radii
+        # arc_length = radius * theta(radians) => theta = arc_length / radius
+        # We halve the gap_px because each adjacent slice takes away half the gap
+        half_gap = gap_px / 2.0
+
+        # Guard against zero or extremely small radii DivisionByZero
+        safe_rad_outer = max(1.0, rad_outer)
+        safe_rad_inner = max(1.0, rad_inner)
+
+        # Calculate angle reduction in degrees
+        angle_reduce_outer = math.degrees(half_gap / safe_rad_outer)
+        angle_reduce_inner = math.degrees(half_gap / safe_rad_inner)
+
+        # If the gap is so large it consumes the whole slice, clamp it so the slice is at least 1 degree wide
+        max_reduction = (angle_span - 1.0) / 2.0
+        if max_reduction < 0:
+            max_reduction = 0
+
+        angle_reduce_outer = min(angle_reduce_outer, max_reduction)
+        angle_reduce_inner = min(angle_reduce_inner, max_reduction)
+
+        # Define the exact precise angles for the inner and outer arcs
+        start_outer = angle_start + angle_reduce_outer
+        span_outer = angle_span - (angle_reduce_outer * 2)
+
+        start_inner = angle_start + angle_reduce_inner
+        span_inner = angle_span - (angle_reduce_inner * 2)
+
         path = QPainterPath()
 
         # Correct for Qt's CCW angle system: Qt uses CCW, we used CW logic
-        qt_start_angle = -angle_start
-        qt_span_angle = -angle_span
+        qt_start_outer = -start_outer
+        qt_span_outer = -span_outer
+
+        qt_start_inner = -start_inner
+        qt_span_inner = -span_inner
 
         # Outer arc
         rect_outer = QRectF(
-            self.center_pos.x() - radius,
-            self.center_pos.y() - radius,
-            radius * 2,
-            radius * 2,
+            self.center_pos.x() - rad_outer,
+            self.center_pos.y() - rad_outer,
+            rad_outer * 2,
+            rad_outer * 2,
         )
-        path.arcMoveTo(rect_outer, qt_start_angle)
-        path.arcTo(rect_outer, qt_start_angle, qt_span_angle)
+        path.arcMoveTo(rect_outer, qt_start_outer)
+        path.arcTo(rect_outer, qt_start_outer, qt_span_outer)
 
         # Inner arc (drawn in reverse to close the shape correctly)
         rect_inner = QRectF(
-            self.center_pos.x() - self.radius_inner,
-            self.center_pos.y() - self.radius_inner,
-            self.radius_inner * 2,
-            self.radius_inner * 2,
+            self.center_pos.x() - rad_inner,
+            self.center_pos.y() - rad_inner,
+            rad_inner * 2,
+            rad_inner * 2,
         )
-        qt_end_angle = qt_start_angle + qt_span_angle
-        path.arcTo(rect_inner, qt_end_angle, -qt_span_angle)
+        qt_end_inner = qt_start_inner + qt_span_inner
+
+        # Draw a straight line from the end of the outer arc to the start of the inner arc
+        # (Qt's arcTo automatically draws a line from the current position to the start of the new arc if needed,
+        # so calling arcTo directly is fine)
+        path.arcTo(rect_inner, qt_end_inner, -qt_span_inner)
 
         path.closeSubpath()
         return path
 
-    def _draw_item_content(self, painter: QPainter, item: PieSlice, mid_angle: float) -> None:
+    def _draw_item_content(
+        self,
+        painter: QPainter,
+        item: PieSlice,
+        mid_angle: float,
+        rad_inner: float,
+        rad_outer: float,
+    ) -> None:
         """Draw icon and label for the item."""
         # Calculate center position of the content
-        rad_mid = (self.radius_inner + self.radius_outer) / 2
+        rad_mid = (rad_inner + rad_outer) / 2
         rad_angle = math.radians(mid_angle)
 
         # Polar to Cartesian

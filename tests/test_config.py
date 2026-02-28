@@ -104,7 +104,7 @@ def test_save_config_success(tmp_path, monkeypatch):
     with open(config_file, encoding="utf-8") as f:
         data = json.load(f)
 
-    assert data["schema_version"] == 4
+    assert data["schema_version"] == 5
     assert len(data["profiles"]) == 1
     assert data["profiles"][0]["name"] == "Save"
 
@@ -144,3 +144,43 @@ def test_config_target_apps_list(tmp_path, monkeypatch):
 
     assert len(loaded_profiles) == 1
     assert loaded_profiles[0].target_apps == target_apps
+
+
+def test_config_recursive_submenus(tmp_path, monkeypatch):
+    """Verify that PieSlice nested submenu_items are preserved during save/load."""
+    config_file = tmp_path / "menu_config.json"
+    monkeypatch.setattr("src.core.config.CONFIG_FILE", str(config_file))
+    monkeypatch.setattr("src.core.config.CONFIG_DIR", str(tmp_path))
+
+    nested_slice = PieSlice(
+        label="Sub2",
+        key="sub",
+        color="#00FF00",
+        action_type="command",
+        submenu_items=[PieSlice(label="Deep", key="x", color="#111")],
+    )
+
+    parent_slice = PieSlice(
+        label="Sub1", key="sub", color="#FFF", action_type="submenu", submenu_items=[nested_slice]
+    )
+
+    profile = MenuProfile(name="SubmenuTest", trigger_key="f4", items=[parent_slice])
+
+    save_config([profile], AppSettings())
+    loaded_profiles, _ = load_config()
+
+    assert len(loaded_profiles) == 1
+    assert len(loaded_profiles[0].items) == 1
+
+    loaded_parent = loaded_profiles[0].items[0]
+    assert loaded_parent.label == "Sub1"
+    assert loaded_parent.action_type == "submenu"
+    assert len(loaded_parent.submenu_items) == 1
+
+    loaded_child = loaded_parent.submenu_items[0]
+    assert loaded_child.label == "Sub2"
+    assert len(loaded_child.submenu_items) == 1
+
+    loaded_deep = loaded_child.submenu_items[0]
+    assert loaded_deep.label == "Deep"
+    assert len(loaded_deep.submenu_items) == 0

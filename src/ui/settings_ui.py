@@ -991,6 +991,7 @@ class PieItemWidget(QFrame):
 
     clicked = pyqtSignal(object)
     double_clicked = pyqtSignal(object)
+    enter_submenu = pyqtSignal(object)
 
     def __init__(self, item: PieSlice, parent=None):
         super().__init__(parent)
@@ -1017,11 +1018,18 @@ class PieItemWidget(QFrame):
         self.label_text.setStyleSheet("font-weight: 500; font-size: 13px;")
         layout.addWidget(self.label_text, 1)
 
-        self.action_text = QLabel(item.key)
+        self.action_text = QLabel(item.key if item.action_type != "submenu" else "Submenu")
         self.action_text.setStyleSheet(
             "font-family: 'Segoe UI Semibold', monospace; font-size: 11px;"
         )
         layout.addWidget(self.action_text)
+
+        if item.action_type == "submenu":
+            self.btn_enter = QPushButton("Enter ➔")
+            self.btn_enter.setCursor(Qt.CursorShape.PointingHandCursor)
+            self.btn_enter.setStyleSheet("font-size: 11px; padding: 2px 8px; font-weight: bold;")
+            self.btn_enter.clicked.connect(self._on_enter_clicked)
+            layout.addWidget(self.btn_enter)
 
         # Icon (if present)
         if item.icon_path:
@@ -1093,6 +1101,9 @@ class PieItemWidget(QFrame):
     def mouseDoubleClickEvent(self, event: Any) -> None:
         self.double_clicked.emit(self)
         super().mouseDoubleClickEvent(event)
+
+    def _on_enter_clicked(self):
+        self.enter_submenu.emit(self)
 
 
 class PiePreviewWidget(QWidget):
@@ -1229,7 +1240,7 @@ class ItemEditorDialog(QDialog):
         # Action Type
         self.lbl_action_type = QLabel()
         self.action_type_combo = QComboBox()
-        self.action_type_combo.addItems(["key", "url", "cmd"])
+        self.action_type_combo.addItems(["key", "url", "cmd", "submenu"])
         current_type = item.action_type if item else "key"
         self.action_type_combo.setCurrentText(current_type)
         self.action_type_combo.currentTextChanged.connect(self._update_preview)
@@ -1240,8 +1251,20 @@ class ItemEditorDialog(QDialog):
         if hook_control:
             self.key_edit.recording_toggled.connect(hook_control)
 
+        self.submenu_hint_label = QLabel(
+            self.tr("Nested items can be added after saving this item.")
+        )
+        self.submenu_hint_label.setStyleSheet("color: #888; font-style: italic;")
+        self.submenu_hint_label.setVisible(False)
+
         self.lbl_value = QLabel()
-        form_layout.addRow(self.lbl_value, self.key_edit)
+
+        self.value_layout = QHBoxLayout()
+        self.value_layout.setContentsMargins(0, 0, 0, 0)
+        self.value_layout.addWidget(self.key_edit)
+        self.value_layout.addWidget(self.submenu_hint_label)
+
+        form_layout.addRow(self.lbl_value, self.value_layout)
 
         self.color_btn = QPushButton()
         if item:
@@ -1401,15 +1424,23 @@ class ItemEditorDialog(QDialog):
 
         # Update placeholder based on type
         atype = self.action_type_combo.currentText()
-        if atype == "url":
-            self.key_edit.setMode("text")
-            self.key_edit.setPlaceholderText("https://example.com")
-        elif atype == "cmd":
-            self.key_edit.setMode("text")
-            self.key_edit.setPlaceholderText(self.tr("notepad.exe or C:\\Path\\To\\App.exe"))
+        if atype == "submenu":
+            self.key_edit.setVisible(False)
+            self.submenu_hint_label.setVisible(True)
+            self.lbl_value.setText(self.tr("Submenu:"))
         else:
-            self.key_edit.setMode("key")
-            self.key_edit.setPlaceholderText(self.tr("Click to record keys..."))
+            self.key_edit.setVisible(True)
+            self.submenu_hint_label.setVisible(False)
+            self.lbl_value.setText(self.tr("Value:"))
+            if atype == "url":
+                self.key_edit.setMode("text")
+                self.key_edit.setPlaceholderText("https://example.com")
+            elif atype == "cmd":
+                self.key_edit.setMode("text")
+                self.key_edit.setPlaceholderText(self.tr("notepad.exe or C:\\Path\\To\\App.exe"))
+            else:
+                self.key_edit.setMode("key")
+                self.key_edit.setPlaceholderText(self.tr("Click to record keys..."))
 
     def pick_color(self):
         color = QColorDialog.getColor(QColor(self.current_color), self, self.tr("Select Color"))
@@ -1488,13 +1519,13 @@ class ItemEditorDialog(QDialog):
 
     def save(self):
         label = self.label_edit.text().strip()
-        key = self.key_edit.text().strip()
         action_type = self.action_type_combo.currentText()
+        key = "" if action_type == "submenu" else self.key_edit.text().strip()
 
         if not label:
             QMessageBox.warning(self, self.tr("Input Error"), self.tr("Please enter a label."))
             return
-        if not key:
+        if action_type != "submenu" and not key:
             QMessageBox.warning(self, self.tr("Input Error"), self.tr("Please set a value."))
             return
 
@@ -1508,12 +1539,18 @@ class ItemEditorDialog(QDialog):
             )
             return
 
+        # Preserve existing submenu_items if editing an existing submenu item
+        existing_submenus = []
+        if self.item and getattr(self.item, "submenu_items", None) is not None:
+            existing_submenus = self.item.submenu_items
+
         self.result_item = PieSlice(
             label=label,
             key=str(key),
             color=self.current_color,
             action_type=action_type,
             icon_path=self.icon_path,
+            submenu_items=existing_submenus,
         )
         self.accept()
 
@@ -1543,6 +1580,7 @@ class SettingsWindow(QWidget):
 
         self.profiles: list[MenuProfile] = []
         self.current_profile_idx = -1
+        self._nav_stack: list[PieSlice] = []  # Stack of submenus currently navigated into
         self.item_widgets: list[PieItemWidget] = []
         self.selected_item_widget: PieItemWidget | None = None  # Renamed from selected_widget
 
@@ -1626,6 +1664,18 @@ class SettingsWindow(QWidget):
         self.group_items = QGroupBox()
         self.group_items.setStyleSheet("QGroupBox { border: none; }")
         group_items_layout = QVBoxLayout()
+
+        # Breadcrumb navigation for submenus
+        self.breadcrumb_layout = QHBoxLayout()
+        self.btn_nav_up = QPushButton("⬆ Back")
+        self.btn_nav_up.clicked.connect(self.navigate_up)
+        self.btn_nav_up.setVisible(False)
+        self.lbl_breadcrumb = QLabel("Root:")
+        self.lbl_breadcrumb.setStyleSheet("font-weight: bold; color: #888;")
+        self.breadcrumb_layout.addWidget(self.btn_nav_up)
+        self.breadcrumb_layout.addWidget(self.lbl_breadcrumb)
+        self.breadcrumb_layout.addStretch()
+        group_items_layout.addLayout(self.breadcrumb_layout)
 
         # Scroll Area for Items
         self.scroll_area = QScrollArea()
@@ -2141,12 +2191,22 @@ class SettingsWindow(QWidget):
             self.btn_save.setEnabled(False)
             self.btn_save.setText(self.tr("Save & Apply"))
 
+    def current_items(self) -> list[PieSlice]:
+        """Returns the list of items based on current navigation depth."""
+        if self._nav_stack:
+            return self._nav_stack[-1].submenu_items
+        if self.current_profile_idx != -1 and self.current_profile_idx < len(self.profiles):
+            return self.profiles[self.current_profile_idx].items
+        return []
+
     def switch_profile(self, index: int) -> None:
         """Switch the currently edited profile."""
         if index < 0 or index >= len(self.profiles):
             return
 
         self.current_profile_idx = index
+        self._nav_stack.clear()
+
         p = self.profiles[index]
         self.trigger_input.setText(p.trigger_key)
 
@@ -2154,11 +2214,41 @@ class SettingsWindow(QWidget):
         targets = p.target_apps if p.target_apps else []
         self._update_app_tags(targets)
 
-        self.update_item_list(p.items)
-        self.preview_widget.update_items(p.items)
+        self.update_breadcrumb_ui()
+        self.update_item_list()
 
-    def update_item_list(self, items: list[PieSlice]) -> None:
-        """Update the UI list of pie items."""
+    def update_breadcrumb_ui(self):
+        """Update breadcrumb label and back button visibility."""
+        if not self._nav_stack:
+            self.btn_nav_up.setVisible(False)
+            if self.current_profile_idx != -1:
+                pname = self.profiles[self.current_profile_idx].name
+                self.lbl_breadcrumb.setText(f"Root ({pname})")
+            else:
+                self.lbl_breadcrumb.setText("Root")
+        else:
+            self.btn_nav_up.setVisible(True)
+            path_names = [s.label for s in self._nav_stack]
+            self.lbl_breadcrumb.setText("Root > " + " > ".join(path_names))
+
+    def enter_submenu(self, widget: PieItemWidget):
+        """Navigate one level down into a submenu item."""
+        if widget.item.action_type == "submenu":
+            self._nav_stack.append(widget.item)
+            self.update_breadcrumb_ui()
+            self.update_item_list()
+
+    def navigate_up(self):
+        """Navigate one level up to the parent menu."""
+        if self._nav_stack:
+            self._nav_stack.pop()
+            self.update_breadcrumb_ui()
+            self.update_item_list()
+
+    def update_item_list(self, override_items: list[PieSlice] | None = None) -> None:
+        """Update the UI list of pie items based on current context."""
+        items = override_items if override_items is not None else self.current_items()
+
         # Clear existing
         for w in self.item_widgets:
             try:
@@ -2175,6 +2265,7 @@ class SettingsWindow(QWidget):
             w = PieItemWidget(item)
             w.clicked.connect(self.on_item_clicked)
             w.double_clicked.connect(self.edit_item)
+            w.enter_submenu.connect(self.enter_submenu)
             self.item_widgets.append(w)
             # Insert before the stretch (which is at index count()-1)
             self.items_layout.insertWidget(self.items_layout.count() - 1, w)
@@ -2310,8 +2401,8 @@ class SettingsWindow(QWidget):
             return
 
         # Collect used colors
-        current_items = self.profiles[self.current_profile_idx].items
-        used_colors = [item.color for item in current_items]
+        items = self.current_items()
+        used_colors = [item.color for item in items]
 
         # Pass current trigger key for validation
         current_trigger = self.trigger_input.text()
@@ -2325,12 +2416,12 @@ class SettingsWindow(QWidget):
         )
         dialog.exec()
         if dialog.result_item:
-            self.profiles[self.current_profile_idx].items.append(dialog.result_item)
+            items.append(dialog.result_item)
             self.set_dirty()
 
         # Even if cancelled, icons might have been deleted from library
-        self.update_item_list(self.profiles[self.current_profile_idx].items)
-        if self.profiles[self.current_profile_idx].items:
+        self.update_item_list()
+        if items:
             self.on_item_clicked(self.item_widgets[-1])  # Select the newly added item
 
     def edit_item(self):  # Renamed from edit_selected_item
@@ -2357,11 +2448,12 @@ class SettingsWindow(QWidget):
         )
         dialog.exec()
         if dialog.result_item:
-            self.profiles[self.current_profile_idx].items[idx] = dialog.result_item
+            items = self.current_items()
+            items[idx] = dialog.result_item
             self.set_dirty()
 
         # Even if cancelled, icons might have been deleted from library
-        self.update_item_list(self.profiles[self.current_profile_idx].items)
+        self.update_item_list()
         self.on_item_clicked(self.item_widgets[idx])  # Re-select the edited item
 
     def remove_item(self):
@@ -2370,13 +2462,14 @@ class SettingsWindow(QWidget):
 
         try:
             idx = self.item_widgets.index(self.selected_item_widget)
-            self.profiles[self.current_profile_idx].items.pop(idx)
-            self.update_item_list(self.profiles[self.current_profile_idx].items)
+            items = self.current_items()
+            items.pop(idx)
+            self.update_item_list()
             self.set_dirty()
         except (RuntimeError, ValueError):
             self.selected_item_widget = None
             # Refresh list anyway if we can't find the widget but one was 'selected'
-            self.update_item_list(self.profiles[self.current_profile_idx].items)
+            self.update_item_list()
 
     def move_up(self):
         if not self.selected_item_widget:
@@ -2384,12 +2477,12 @@ class SettingsWindow(QWidget):
         try:
             idx = self.item_widgets.index(self.selected_item_widget)
             if idx > 0:
-                current_items = self.profiles[self.current_profile_idx].items
+                current_items = self.current_items()
                 current_items[idx], current_items[idx - 1] = (
                     current_items[idx - 1],
                     current_items[idx],
                 )
-                self.update_item_list(current_items)
+                self.update_item_list()
                 self.on_item_clicked(self.item_widgets[idx - 1])
                 self.set_dirty()
         except (RuntimeError, ValueError):
@@ -2401,12 +2494,12 @@ class SettingsWindow(QWidget):
         try:
             idx = self.item_widgets.index(self.selected_item_widget)
             if idx < len(self.item_widgets) - 1:
-                current_items = self.profiles[self.current_profile_idx].items
+                current_items = self.current_items()
                 current_items[idx], current_items[idx + 1] = (
                     current_items[idx + 1],
                     current_items[idx],
                 )
-                self.update_item_list(current_items)
+                self.update_item_list()
                 self.on_item_clicked(self.item_widgets[idx + 1])
                 self.set_dirty()
         except (RuntimeError, ValueError):

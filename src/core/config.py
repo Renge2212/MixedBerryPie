@@ -202,8 +202,9 @@ class PieSlice:
     label: str
     key: str
     color: str
-    action_type: str = "key"  # 'key', 'url', 'cmd'
+    action_type: str = "key"  # 'key', 'url', 'cmd', 'submenu', 'back'
     icon_path: str | None = None
+    submenu_items: list["PieSlice"] = field(default_factory=list)
 
 
 @dataclass
@@ -253,6 +254,21 @@ class MenuProfile:
     def __post_init__(self):
         if self.target_apps is None:
             self.target_apps = []
+
+
+def _parse_slice(data: dict) -> PieSlice:
+    """Recursively parse a dictionary into a PieSlice object."""
+    submenu_data = data.get("submenu_items", [])
+    submenus = [_parse_slice(child) for child in submenu_data if isinstance(child, dict)]
+
+    return PieSlice(
+        label=data.get("label", ""),
+        key=data.get("key", ""),
+        color=data.get("color", "#CCCCCC"),
+        action_type=data.get("action_type", "key"),
+        icon_path=data.get("icon_path"),
+        submenu_items=submenus,
+    )
 
 
 # Default configuration
@@ -327,12 +343,12 @@ def load_config() -> tuple[list[MenuProfile], AppSettings]:
                 logger.info(f"Migrating schema version {schema_version} to 3")
                 trigger_key = data.get("trigger_key", DEFAULT_TRIGGER)
                 items_data = data.get("items", [])
-                items = [PieSlice(**i) for i in items_data if isinstance(i, dict)]
+                items = [_parse_slice(i) for i in items_data if isinstance(i, dict)]
                 profiles.append(MenuProfile(name="Default", trigger_key=trigger_key, items=items))
             else:
                 # Load existing profiles
                 for p_data in data.get("profiles", []):
-                    items = [PieSlice(**i) for i in p_data.get("items", [])]
+                    items = [_parse_slice(i) for i in p_data.get("items", [])]
                     profiles.append(
                         MenuProfile(
                             name=p_data.get("name", "Unnamed Profile"),
@@ -384,7 +400,7 @@ def save_config(profiles: list[MenuProfile], settings: AppSettings | None = None
             settings = AppSettings()
 
         data = {
-            "schema_version": 4,  # Upgrade to version 4
+            "schema_version": 5,  # Upgrade to version 5 (Nested Slices)
             "profiles": [
                 {
                     "name": p.name,
