@@ -438,6 +438,11 @@ class PieOverlay(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
+        # 1. Background Dimming (fill entire widget/screen)
+        if self.settings.dim_background:
+            # We want a subtle dark overlay over everything before drawing the menu
+            painter.fillRect(self.rect(), QColor(0, 0, 0, 100))
+
         # Apply scaling animation
         if self.is_animating:
             # Scale from center
@@ -678,6 +683,21 @@ class PieOverlay(QWidget):
             font.setPointSize(self.text_size)
             painter.setFont(font)
 
+        # Determine text color based on background luminance if enabled
+        text_color = Qt.GlobalColor.white
+        outline_color = QColor(item.color).darker(150)
+
+        if self.settings.dynamic_text_color:
+            bg_color = QColor(item.color)
+            # Relative luminance formula (approximate)
+            luminance = (
+                0.299 * bg_color.red() + 0.587 * bg_color.green() + 0.114 * bg_color.blue()
+            ) / 255.0
+            if luminance > 0.6:  # Bright background
+                text_color = Qt.GlobalColor.black
+                # Use a lighter outline for black text on bright backgrounds
+                outline_color = QColor(item.color).lighter(150)
+
         # Calculate text position
         if item.icon_path:
             # Text physically tight below the icon, align top
@@ -691,8 +711,6 @@ class PieOverlay(QWidget):
             flags = Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap
 
         if self.settings.enable_text_outline:
-            # Draw Outline (Matching item color but darker for contrast)
-            outline_color = QColor(item.color).darker(150)
             painter.setPen(outline_color)
 
             # 1px outline
@@ -703,5 +721,5 @@ class PieOverlay(QWidget):
                 painter.drawText(text_rect.translated(dx, dy), flags, item.label)
 
         # Draw Main Label
-        painter.setPen(Qt.GlobalColor.white)
+        painter.setPen(text_color)
         painter.drawText(text_rect, flags, item.label)

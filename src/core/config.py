@@ -239,6 +239,8 @@ class AppSettings:
     key_sequence_delay_ms: int = 0
     font_family: str = "Segoe UI Variable Display"
     enable_text_outline: bool = True
+    dim_background: bool = False
+    dynamic_text_color: bool = False
     first_run: bool = True
 
 

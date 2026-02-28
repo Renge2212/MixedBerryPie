@@ -1819,6 +1819,20 @@ class SettingsWindow(QWidget):
         self.text_outline_checkbox.stateChanged.connect(self.set_dirty)
         adv_form.addRow(self.lbl_text_outline, self.text_outline_checkbox)
 
+        # Dynamic Text Color
+        self.lbl_dynamic_text = QLabel()
+        self.dynamic_text_checkbox = QCheckBox()
+        self.dynamic_text_checkbox.setChecked(self.settings.dynamic_text_color)
+        self.dynamic_text_checkbox.stateChanged.connect(self.set_dirty)
+        adv_form.addRow(self.lbl_dynamic_text, self.dynamic_text_checkbox)
+
+        # Dim Background
+        self.lbl_dim_bg = QLabel()
+        self.dim_bg_checkbox = QCheckBox()
+        self.dim_bg_checkbox.setChecked(self.settings.dim_background)
+        self.dim_bg_checkbox.stateChanged.connect(self.set_dirty)
+        adv_form.addRow(self.lbl_dim_bg, self.dim_bg_checkbox)
+
         # Font Family
         self.lbl_font_family = QLabel()
         self.font_family_combo = QFontComboBox()
@@ -1974,6 +1988,10 @@ class SettingsWindow(QWidget):
         self.lbl_text_size.setText(self.tr("Text Size:"))
         self.lbl_text_outline.setText(self.tr("Text Outline:"))
         self.text_outline_checkbox.setText(self.tr("Add dark outline to menu text for visibility"))
+        self.lbl_dynamic_text.setText(self.tr("Dynamic Text Color:"))
+        self.dynamic_text_checkbox.setText(self.tr("Auto-switch text to black on bright items"))
+        self.lbl_dim_bg.setText(self.tr("Dim Background:"))
+        self.dim_bg_checkbox.setText(self.tr("Darken the screen behind the menu"))
         self.lbl_font_family.setText(self.tr("Font Family:"))
 
         self.group_behavior.setTitle(self.tr("Behavior"))
@@ -2188,6 +2206,8 @@ class SettingsWindow(QWidget):
         self.icon_size_slider.setValue(self.settings.icon_size)
         self.text_size_slider.setValue(self.settings.text_size)
         self.text_outline_checkbox.setChecked(self.settings.enable_text_outline)
+        self.dynamic_text_checkbox.setChecked(self.settings.dynamic_text_color)
+        self.dim_bg_checkbox.setChecked(self.settings.dim_background)
         self.font_family_combo.setCurrentFont(QFont(self.settings.font_family))
         self.show_animations_checkbox.setChecked(self.settings.show_animations)
         self.replay_checkbox.setChecked(self.settings.replay_unselected)
@@ -2624,6 +2644,8 @@ class SettingsWindow(QWidget):
         self.settings.icon_size = self.icon_size_slider.value()
         self.settings.text_size = self.text_size_slider.value()
         self.settings.enable_text_outline = self.text_outline_checkbox.isChecked()
+        self.settings.dynamic_text_color = self.dynamic_text_checkbox.isChecked()
+        self.settings.dim_background = self.dim_bg_checkbox.isChecked()
         self.settings.font_family = self.font_family_combo.currentFont().family()
         self.settings.show_animations = self.show_animations_checkbox.isChecked()
         self.settings.replay_unselected = self.replay_checkbox.isChecked()
