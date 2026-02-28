@@ -24,7 +24,7 @@ from PyQt6.QtGui import (
     QPixmap,
 )
 from PyQt6.QtSvg import QSvgRenderer
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtWidgets import QApplication, QWidget
 
 from src.core.config import AppSettings, PieSlice
 from src.core.logger import get_logger
@@ -132,14 +132,6 @@ class PieOverlay(QWidget):
         # Gap between rings to prevent overlap with selection highlight (10px highlight + 5px extra)
         self.ring_gap = 15
 
-        max_depth = self._get_max_depth(self.menu_items) if hasattr(self, "menu_items") else 0
-        total_radius = self.radius_outer + (max_depth * (self.ring_thickness + self.ring_gap))
-
-        # Add padding for the pop-out animation and outline safety
-        window_size = int(total_radius * 2) + 60
-        self.resize(window_size, window_size)
-        self.center_pos = QPoint(self.width() // 2, self.height() // 2)
-
         if self.settings.auto_scale_with_menu:
             # Scale icon and text proportionally to menu size (base: 400px)
             scale = size / 400.0
@@ -172,10 +164,23 @@ class PieOverlay(QWidget):
         self._update_dimensions()
 
         cursor_pos = QCursor.pos()
-        # Center the window on the cursor
-        x = cursor_pos.x() - self.width() // 2
-        y = cursor_pos.y() - self.height() // 2
-        self.move(x, y)
+
+        # Full screen overlay
+        screen = QApplication.primaryScreen()
+        if screen:
+            screen_rect = screen.geometry()
+            self.setGeometry(screen_rect)
+            # Center the menu drawing exactly at the cursor's coordinates relative to the screen
+            self.center_pos = QPoint(
+                cursor_pos.x() - screen_rect.x(), cursor_pos.y() - screen_rect.y()
+            )
+        else:
+            # Fallback if screen is somehow unavailable
+            # Add padding for the pop-out animation and outline safety
+            window_size = int(self.radius_outer * 2) + 60
+            self.resize(window_size, window_size)
+            self.center_pos = QPoint(self.width() // 2, self.height() // 2)
+            self.move(cursor_pos.x() - self.width() // 2, cursor_pos.y() - self.height() // 2)
 
         self.active_path = []
         self.is_visible = True
