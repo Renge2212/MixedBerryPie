@@ -354,6 +354,10 @@ class MixedBerryPieApp(QObject):
     def _do_execute(self, value: str, action_type: str) -> None:
         """Internal method to execute actions (runs in a worker thread)."""
         app_logger.info(f"Executing action: {value} ({action_type})")
+        if not value:
+            app_logger.info("Empty action value, skipping execution.")
+            return
+
         try:
             if action_type == "url":
                 webbrowser.open(value)

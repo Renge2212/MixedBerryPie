@@ -197,8 +197,13 @@ class PieOverlay(QWidget):
             self.animation_scale = 1.0
             self.is_animating = False
 
+        # Workaround for Windows DWM flashing the old window buffer:
+        # Make window transparent, show it, paint the new frame, then restore opacity.
+        self.setWindowOpacity(0.0)
         self.show()
-        self.update()
+        self.repaint()
+        self.setWindowOpacity(1.0)
+
         self._poll_timer.start()
         logger.debug(f"Overlay shown at {cursor_pos}")
 
