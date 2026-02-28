@@ -1001,10 +1001,11 @@ class PieItemWidget(QFrame):
         self.selected = False
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setFixedHeight(50)
+        self.setFixedHeight(64)
 
         layout = QHBoxLayout()
-        layout.setContentsMargins(10, 5, 10, 5)
+        layout.setContentsMargins(12, 6, 12, 6)
+        layout.setSpacing(10)
         self.setLayout(layout)
 
         # Color indicator
@@ -1019,19 +1020,19 @@ class PieItemWidget(QFrame):
 
         # Labels
         self.label_text = QLabel(item.label)
-        self.label_text.setStyleSheet("font-weight: 500; font-size: 13px;")
+        self.label_text.setStyleSheet("font-weight: 500; font-size: 14px;")
         layout.addWidget(self.label_text, 1)
 
         self.action_text = QLabel(item.key if item.action_type != "submenu" else self.tr("Submenu"))
         self.action_text.setStyleSheet(
-            "font-family: 'Segoe UI Semibold', monospace; font-size: 11px;"
+            "font-family: 'Segoe UI Semibold', monospace; font-size: 12px;"
         )
         layout.addWidget(self.action_text)
 
         if item.action_type == "submenu":
             self.btn_enter = QPushButton(self.tr("Enter ➔"))
+            self.btn_enter.setObjectName("enterSubmenuBtn")
             self.btn_enter.setCursor(Qt.CursorShape.PointingHandCursor)
-            self.btn_enter.setStyleSheet("font-size: 11px; padding: 2px 8px; font-weight: bold;")
             self.btn_enter.clicked.connect(self._on_enter_clicked)
             layout.addWidget(self.btn_enter)
 
@@ -1074,8 +1075,8 @@ class PieItemWidget(QFrame):
                 PieItemWidget {{
                     background-color: {bg_color};
                     border: 1px solid {border_color};
-                    border-radius: 6px;
-                    margin: 2px 5px;
+                    border-radius: 10px;
+                    margin: 4px 6px;
                 }}
                 PieItemWidget:hover {{
                     background-color: {hover_bg};
@@ -1087,6 +1088,22 @@ class PieItemWidget(QFrame):
                 QLabel#pieItemIcon {{
                     background-color: {"rgba(30,30,30,0.4)" if dark else "rgba(30, 30, 30, 0.8)"};
                     border-radius: 4px;
+                }}
+                QPushButton#enterSubmenuBtn {{
+                    font-size: 13px;
+                    padding: 8px 20px;
+                    font-weight: bold;
+                    color: white;
+                    background-color: rgba(0, 120, 212, 0.4);
+                    border: 1px solid rgba(0, 120, 212, 0.6);
+                    border-radius: 6px;
+                }}
+                QPushButton#enterSubmenuBtn:hover {{
+                    background-color: rgba(0, 120, 212, 0.9);
+                    border: 1px solid #0078d4;
+                }}
+                QPushButton#enterSubmenuBtn:pressed {{
+                    background-color: #005a9e;
                 }}
             """)
             self.action_text.setStyleSheet(
