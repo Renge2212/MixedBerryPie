@@ -149,12 +149,12 @@ class PieOverlay(QWidget):
             self.icon_size = self.settings.icon_size
             self.text_size = self.settings.text_size
 
-        # Initialize fonts
-        self._item_font = QFont("Segoe UI")
+        # Initialize fonts (using configured font)
+        self._item_font = QFont(self.settings.font_family)
         self._item_font.setBold(True)
         self._item_font.setPointSize(self.text_size)
 
-        self._micro_font = QFont("Segoe UI", 8, QFont.Weight.Bold)
+        self._micro_font = QFont(self.settings.font_family, 8, QFont.Weight.Bold)
 
     def _recalculate_paths(self) -> None:
         """Obsolete: Paths are now dynamically generated in _draw_layer to support concentric rings and submenus."""
@@ -505,10 +505,6 @@ class PieOverlay(QWidget):
             opacity_percent = self.settings.menu_opacity
             base_color.setAlpha(int(255 * opacity_percent / 100))
 
-            # 1. Drop Shadow (Soft dark underlay to elevate the slice)
-            shadow_path = path_obj.translated(0, 4)
-            painter.fillPath(shadow_path, QColor(0, 0, 0, 60))
-
             # 2. Slice Fill
             if is_selected:
                 # Selected: Brighter fill
@@ -662,9 +658,7 @@ class PieOverlay(QWidget):
 
                 pixmap = self._icon_cache[cache_key]
                 if not pixmap.isNull():
-                    painter.drawPixmap(
-                        int(cx - icon_size / 2), int(cy - icon_size / 2 - 10), pixmap
-                    )
+                    painter.drawPixmap(int(cx - icon_size / 2), int(cy - icon_size / 2 - 6), pixmap)
             else:
                 # Handle Raster
                 if cache_key not in self._icon_cache:
@@ -673,30 +667,41 @@ class PieOverlay(QWidget):
 
                 pixmap = self._icon_cache[cache_key]
                 if not pixmap.isNull():
-                    painter.drawPixmap(
-                        int(cx - icon_size / 2), int(cy - icon_size / 2 - 10), pixmap
-                    )
+                    painter.drawPixmap(int(cx - icon_size / 2), int(cy - icon_size / 2 - 6), pixmap)
 
-        # Draw Label
-        painter.setPen(Qt.GlobalColor.white)
+        # Setup Font
         if self._item_font:
             painter.setFont(self._item_font)
         else:
-            font = QFont("Segoe UI")
+            font = QFont(self.settings.font_family)
             font.setBold(True)
             font.setPointSize(self.text_size)
             painter.setFont(font)
 
         # Calculate text position
         if item.icon_path:
-            # Text below icon
-            text_rect = QRectF(cx - 60, cy + icon_size / 2 - 5, 120, 40)
+            # Text physically tight below the icon, align top
+            text_rect = QRectF(cx - 60, cy + icon_size / 2 - 4, 120, 40)
+            flags = (
+                Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap
+            )
         else:
-            # Text centered vertically (no icon)
+            # Text perfectly centered vertically if no icon
             text_rect = QRectF(cx - 60, cy - 20, 120, 40)
+            flags = Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap
 
-        painter.drawText(
-            text_rect,
-            Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap,
-            item.label,
-        )
+        if self.settings.enable_text_outline:
+            # Draw Outline (Matching item color but darker for contrast)
+            outline_color = QColor(item.color).darker(150)
+            painter.setPen(outline_color)
+
+            # 1px outline
+            for dx, dy in [(-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1)]:
+                painter.drawText(text_rect.translated(dx, dy), flags, item.label)
+            # 2px outline for a slightly thicker, softer edge
+            for dx, dy in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
+                painter.drawText(text_rect.translated(dx, dy), flags, item.label)
+
+        # Draw Main Label
+        painter.setPen(Qt.GlobalColor.white)
+        painter.drawText(text_rect, flags, item.label)

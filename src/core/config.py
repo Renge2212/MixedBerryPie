@@ -237,6 +237,8 @@ class AppSettings:
     auto_scale_with_menu: bool = True
     menu_opacity: int = 80
     key_sequence_delay_ms: int = 0
+    font_family: str = "Segoe UI Variable Display"
+    enable_text_outline: bool = True
     first_run: bool = True
 
 

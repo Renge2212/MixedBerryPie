@@ -39,6 +39,7 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
     QFileDialog,
+    QFontComboBox,
     QFormLayout,
     QFrame,
     QGroupBox,
@@ -1811,6 +1812,20 @@ class SettingsWindow(QWidget):
         self._row_text_size = (self.lbl_text_size, self.text_size_slider)
         adv_form.addRow(self.lbl_text_size, self.text_size_slider)
 
+        # Text Outline
+        self.lbl_text_outline = QLabel()
+        self.text_outline_checkbox = QCheckBox()
+        self.text_outline_checkbox.setChecked(self.settings.enable_text_outline)
+        self.text_outline_checkbox.stateChanged.connect(self.set_dirty)
+        adv_form.addRow(self.lbl_text_outline, self.text_outline_checkbox)
+
+        # Font Family
+        self.lbl_font_family = QLabel()
+        self.font_family_combo = QFontComboBox()
+        self.font_family_combo.setCurrentFont(QFont(self.settings.font_family))
+        self.font_family_combo.currentFontChanged.connect(self.set_dirty)
+        adv_form.addRow(self.lbl_font_family, self.font_family_combo)
+
         self.group_adv.setLayout(adv_form)
         settings_layout.addWidget(self.group_adv)
 
@@ -1957,6 +1972,9 @@ class SettingsWindow(QWidget):
         )
         self.lbl_icon_size.setText(self.tr("Icon Size:"))
         self.lbl_text_size.setText(self.tr("Text Size:"))
+        self.lbl_text_outline.setText(self.tr("Text Outline:"))
+        self.text_outline_checkbox.setText(self.tr("Add dark outline to menu text for visibility"))
+        self.lbl_font_family.setText(self.tr("Font Family:"))
 
         self.group_behavior.setTitle(self.tr("Behavior"))
         self.lbl_show_animations.setText(self.tr("Animations:"))
@@ -2169,6 +2187,8 @@ class SettingsWindow(QWidget):
         self.preview_widget.update_opacity(self.settings.menu_opacity)
         self.icon_size_slider.setValue(self.settings.icon_size)
         self.text_size_slider.setValue(self.settings.text_size)
+        self.text_outline_checkbox.setChecked(self.settings.enable_text_outline)
+        self.font_family_combo.setCurrentFont(QFont(self.settings.font_family))
         self.show_animations_checkbox.setChecked(self.settings.show_animations)
         self.replay_checkbox.setChecked(self.settings.replay_unselected)
         self.long_press_spin.setValue(self.settings.long_press_delay_ms)
@@ -2603,6 +2623,8 @@ class SettingsWindow(QWidget):
         self.settings.menu_opacity = self.menu_opacity_slider.value()
         self.settings.icon_size = self.icon_size_slider.value()
         self.settings.text_size = self.text_size_slider.value()
+        self.settings.enable_text_outline = self.text_outline_checkbox.isChecked()
+        self.settings.font_family = self.font_family_combo.currentFont().family()
         self.settings.show_animations = self.show_animations_checkbox.isChecked()
         self.settings.replay_unselected = self.replay_checkbox.isChecked()
         self.settings.long_press_delay_ms = self.long_press_spin.value()
