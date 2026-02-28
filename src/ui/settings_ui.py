@@ -66,6 +66,7 @@ from PyQt6.QtWidgets import (
 
 from src.core import config, i18n
 from src.core.config import (
+    AppSettings,
     MenuProfile,
     PieSlice,
     add_to_icon_history,
@@ -994,7 +995,7 @@ class PieItemWidget(QFrame):
     double_clicked = pyqtSignal(object)
     enter_submenu = pyqtSignal(object)
 
-    def __init__(self, item: PieSlice, parent=None):
+    def __init__(self, item: PieSlice, parent=None, color_mode="individual"):
         super().__init__(parent)
         self.item = item
         self.selected = False
@@ -1013,20 +1014,22 @@ class PieItemWidget(QFrame):
             f"background-color: {item.color}; border: 1px solid rgba(255,255,255,0.2); border-radius: 9px;"
         )  # Circle shape
         layout.addWidget(self.color_box)
+        if color_mode != "individual":
+            self.color_box.setVisible(False)
 
         # Labels
         self.label_text = QLabel(item.label)
         self.label_text.setStyleSheet("font-weight: 500; font-size: 13px;")
         layout.addWidget(self.label_text, 1)
 
-        self.action_text = QLabel(item.key if item.action_type != "submenu" else "Submenu")
+        self.action_text = QLabel(item.key if item.action_type != "submenu" else self.tr("Submenu"))
         self.action_text.setStyleSheet(
             "font-family: 'Segoe UI Semibold', monospace; font-size: 11px;"
         )
         layout.addWidget(self.action_text)
 
         if item.action_type == "submenu":
-            self.btn_enter = QPushButton("Enter ➔")
+            self.btn_enter = QPushButton(self.tr("Enter ➔"))
             self.btn_enter.setCursor(Qt.CursorShape.PointingHandCursor)
             self.btn_enter.setStyleSheet("font-size: 11px; padding: 2px 8px; font-weight: bold;")
             self.btn_enter.clicked.connect(self._on_enter_clicked)
@@ -1114,6 +1117,10 @@ class PiePreviewWidget(QWidget):
         super().__init__(parent)
         self.menu_items: list[PieSlice] = []
         self.opacity_percent = 80
+        self.color_mode = "individual"
+        self.unified_color = "#448AFF"
+        self.selected_preset = "Mixed Berry"
+        self.current_palette: list[str] = []
         self.setMinimumSize(220, 220)
         self.radius_inner = 25
         self.radius_outer = 85
@@ -1124,6 +1131,15 @@ class PiePreviewWidget(QWidget):
 
     def update_items(self, items: list[PieSlice]) -> None:
         self.menu_items = items
+        self.update()
+
+    def update_unified_color(
+        self, mode: str, color: str, preset: str, palette: list[str] | None = None
+    ) -> None:
+        self.color_mode = mode
+        self.unified_color = color
+        self.selected_preset = preset
+        self.current_palette = palette or []
         self.update()
 
     def paintEvent(self, event):
@@ -1155,7 +1171,21 @@ class PiePreviewWidget(QWidget):
         for i, item in enumerate(self.menu_items):
             angle_start = (90 + slice_span / 2) - (i * slice_span)
 
-            color = QColor(item.color)
+            effective_color_str = item.color
+            if self.color_mode == "unified":
+                effective_color_str = self.unified_color
+            elif self.color_mode == "preset":
+                palette = self.current_palette
+                if palette:
+                    color_idx = i % len(palette)
+                    # Adjacency fix for circular menus
+                    if num_items > 1 and i == num_items - 1 and color_idx == 0 and len(palette) > 1:
+                        color_idx = (color_idx + 1) % len(palette)
+                    effective_color_str = palette[color_idx]
+                else:
+                    effective_color_str = "#CCCCCC"
+
+            color = QColor(effective_color_str)
             color.setAlpha(int(255 * self.opacity_percent / 100))
 
             rect_outer = QRectF(
@@ -1203,6 +1233,56 @@ class PiePreviewWidget(QWidget):
             painter.drawText(int(tx - tw / 2), int(ty + fm.height() / 4), label)
 
 
+class ColorStripWidget(QWidget):
+    """A small widget that shows a series of color blocks to visualize a palette."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.color_palette: list[str] = []
+        self.setFixedWidth(120)
+        self.setFixedHeight(18)
+
+    def set_palette(self, palette: list[str]) -> None:
+        self.color_palette = palette
+        self.update()
+
+    def paintEvent(self, event):
+        if not self.color_palette:
+            return
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        n = len(self.color_palette)
+        w = self.width() / n
+        h = self.height()
+
+        for i, color_str in enumerate(self.color_palette):
+            color = QColor(color_str)
+            painter.setBrush(color)
+            painter.setPen(Qt.PenStyle.NoPen)
+            # Rounded corners for the strip
+            rect = QRectF(i * w, 0, w, h)
+            if n == 1:
+                painter.drawRoundedRect(rect, 4, 4)
+            elif i == 0:
+                # Round left only (fake it with a path or just use rect and round the whole strip container?)
+                # Simplest: draw a path or just use drawRect for middle ones.
+                path = QPainterPath()
+                path.addRoundedRect(rect, 4, 4)
+                painter.fillPath(path, QBrush(color))
+                # Cover right part to make it square
+                painter.fillRect(int(i * w + w / 2), 0, int(w / 2 + 1), int(h), color)
+            elif i == n - 1:
+                path = QPainterPath()
+                path.addRoundedRect(rect, 4, 4)
+                painter.fillPath(path, QBrush(color))
+                # Cover left part
+                painter.fillRect(int(i * w), 0, int(w / 2 + 1), int(h), color)
+            else:
+                painter.fillRect(rect, color)
+
+
 class ItemEditorDialog(QDialog):
     def __init__(
         self,
@@ -1225,6 +1305,25 @@ class ItemEditorDialog(QDialog):
         self.result_item: PieSlice | None = None
         self.used_colors = used_colors or []
 
+        # Color mode settings from global UI state (live)
+        if hasattr(parent, "combo_color_mode"):
+            self.color_mode = parent.combo_color_mode.currentData()
+            self.global_unified_color = getattr(parent, "_current_unified_color", "#448AFF")
+            self.global_palette: list[str] = getattr(parent, "_get_current_palette", lambda: [])()
+        elif hasattr(parent, "settings"):
+            settings = parent.settings
+            if settings:
+                self.color_mode = getattr(settings, "color_mode", "individual")
+                self.global_unified_color = getattr(settings, "unified_color", "#448AFF")
+            else:
+                self.color_mode = "individual"
+                self.global_unified_color = "#448AFF"
+            self.global_palette = []
+        else:
+            self.color_mode = "individual"
+            self.global_unified_color = "#448AFF"
+            self.global_palette = []
+
         main_h_layout = QHBoxLayout()
         self.setLayout(main_h_layout)
 
@@ -1241,10 +1340,22 @@ class ItemEditorDialog(QDialog):
         # Action Type
         self.lbl_action_type = QLabel()
         self.action_type_combo = QComboBox()
-        self.action_type_combo.addItems(["key", "url", "cmd", "submenu"])
+        # Mapping of internal type to display name
+        self.type_display_map = {
+            "key": self.tr("Key Input"),
+            "url": self.tr("Open URL"),
+            "cmd": self.tr("Run Command"),
+            "submenu": self.tr("Submenu"),
+        }
+        for internal_type, display_name in self.type_display_map.items():
+            self.action_type_combo.addItem(display_name, internal_type)
+
         current_type = item.action_type if item else "key"
-        self.action_type_combo.setCurrentText(current_type)
-        self.action_type_combo.currentTextChanged.connect(self._update_preview)
+        index = self.action_type_combo.findData(current_type)
+        if index >= 0:
+            self.action_type_combo.setCurrentIndex(index)
+
+        self.action_type_combo.currentIndexChanged.connect(self._update_preview)
         form_layout.addRow(self.lbl_action_type, self.action_type_combo)
 
         self.key_edit = KeySequenceEdit(item.key if item else "")
@@ -1278,6 +1389,11 @@ class ItemEditorDialog(QDialog):
 
         self.lbl_color = QLabel()
         form_layout.addRow(self.lbl_color, self.color_btn)
+
+        # Hide color if not in individual mode
+        if self.color_mode != "individual":
+            self.lbl_color.setVisible(False)
+            self.color_btn.setVisible(False)
 
         # Icon Selection
         icon_layout = QHBoxLayout()
@@ -1328,7 +1444,7 @@ class ItemEditorDialog(QDialog):
 
         btn_box = QHBoxLayout()
         btn_box.addStretch()
-        self.save_btn = QPushButton("OK")
+        self.save_btn = QPushButton(self.tr("OK"))
         self.save_btn.setDefault(True)
         self.save_btn.clicked.connect(self.save)
         self.cancel_btn = QPushButton("Cancel")
@@ -1348,6 +1464,10 @@ class ItemEditorDialog(QDialog):
         self.preview_widget.setFixedSize(180, 180)
         self.preview_widget.radius_outer = 60
         self.preview_widget.radius_inner = 20
+        # Sync with global mode
+        self.preview_widget.update_unified_color(
+            self.color_mode, self.global_unified_color, "", palette=self.global_palette
+        )
         preview_container.addWidget(self.preview_widget, 0, Qt.AlignmentFlag.AlignCenter)
         main_h_layout.addLayout(preview_container, 1)
 
@@ -1364,7 +1484,7 @@ class ItemEditorDialog(QDialog):
         self.lbl_color.setText(self.tr("Color:"))
         self.lbl_icon.setText(self.tr("Icon:"))
 
-        self.save_btn.setText("OK")
+        self.save_btn.setText(self.tr("OK"))
         self.cancel_btn.setText(self.tr("Cancel"))
         self.lbl_preview.setText(self.tr("Preview"))
 
@@ -1424,7 +1544,7 @@ class ItemEditorDialog(QDialog):
         self.preview_widget.update_items([temp_item, placeholder, placeholder, placeholder])
 
         # Update placeholder based on type
-        atype = self.action_type_combo.currentText()
+        atype = self.action_type_combo.currentData()
         if atype == "submenu":
             self.key_edit.setVisible(False)
             self.submenu_hint_label.setVisible(True)
@@ -1554,6 +1674,208 @@ class ItemEditorDialog(QDialog):
             submenu_items=existing_submenus,
         )
         self.accept()
+
+
+class PresetEditorDialog(QDialog):
+    """Dialog to name a preset and pick its colors."""
+
+    def __init__(self, parent=None, name: str = "", colors: list[str] | None = None):
+        super().__init__(parent)
+        self.setWindowTitle(self.tr("Edit Preset") if name else self.tr("New Preset"))
+        self.setMinimumWidth(400)
+        self.colors = colors or ["#CCCCCC"]
+        self.result_name = name
+        self.result_colors = self.colors.copy()
+
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        form = QFormLayout()
+        self.name_edit = QLineEdit(name)
+        self.name_edit.setPlaceholderText(self.tr("Preset Name"))
+        form.addRow(self.tr("Name:"), self.name_edit)
+        layout.addLayout(form)
+
+        layout.addWidget(QLabel(self.tr("Colors:")))
+        self.colors_layout = FlowLayout()
+        self.colors_container = QWidget()
+        self.colors_container.setLayout(self.colors_layout)
+        layout.addWidget(self.colors_container)
+
+        self._refresh_colors()
+
+        btn_add_color = QPushButton(self.tr("Add Color"))
+        btn_add_color.clicked.connect(self.add_color)
+        layout.addWidget(btn_add_color)
+
+        buttons = QHBoxLayout()
+        self.btn_ok = QPushButton("OK")
+        self.btn_ok.clicked.connect(self.save)
+        self.btn_cancel = QPushButton(self.tr("Cancel"))
+        self.btn_cancel.clicked.connect(self.reject)
+        buttons.addStretch()
+        buttons.addWidget(self.btn_ok)
+        buttons.addWidget(self.btn_cancel)
+        layout.addLayout(buttons)
+
+    def _refresh_colors(self):
+        # Clear layout
+        while self.colors_layout.count():
+            item = self.colors_layout.takeAt(0)
+            if w := item.widget():
+                w.deleteLater()
+
+        for i, color in enumerate(self.result_colors):
+            btn = QPushButton()
+            btn.setFixedSize(24, 24)
+            btn.setStyleSheet(
+                f"background-color: {color}; border: 1px solid #888; border-radius: 4px;"
+            )
+            btn.clicked.connect(lambda checked, idx=i: self.edit_color(idx))
+
+            # Tooltip for help
+            btn.setToolTip(self.tr("Click to edit, Right-click to remove"))
+
+            # Right click to remove
+            btn.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            btn.customContextMenuRequested.connect(lambda pos, idx=i: self.remove_color(idx))
+
+            self.colors_layout.addWidget(btn)
+
+    def add_color(self):
+        from PyQt6.QtWidgets import QColorDialog
+
+        color = QColorDialog.getColor(QColor("#CCCCCC"), self)
+        if color.isValid():
+            self.result_colors.append(color.name().upper())
+            self._refresh_colors()
+
+    def edit_color(self, idx):
+        from PyQt6.QtWidgets import QColorDialog
+
+        color = QColorDialog.getColor(QColor(self.result_colors[idx]), self)
+        if color.isValid():
+            self.result_colors[idx] = color.name().upper()
+            self._refresh_colors()
+
+    def remove_color(self, idx):
+        if len(self.result_colors) > 1:
+            self.result_colors.pop(idx)
+            self._refresh_colors()
+
+    def save(self):
+        self.result_name = self.name_edit.text().strip()
+        if not self.result_name:
+            QMessageBox.warning(self, self.tr("Input Error"), self.tr("Please enter a name."))
+            return
+        self.accept()
+
+
+class PresetManagerDialog(QDialog):
+    """Dialog to list, add, edit, and delete custom presets."""
+
+    def __init__(self, parent, settings: AppSettings):
+        super().__init__(parent)
+        self.setWindowTitle(self.tr("Manage Color Presets"))
+        self.setMinimumWidth(500)
+        self.setMinimumHeight(400)
+        self.settings = settings
+
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        self.list = QListWidget()
+        layout.addWidget(self.list)
+
+        self._refresh_list()
+
+        btn_layout = QHBoxLayout()
+        self.btn_add = QPushButton(self.tr("Add"))
+        self.btn_add.clicked.connect(self.add_preset)
+        self.btn_edit = QPushButton(self.tr("Edit"))
+        self.btn_edit.clicked.connect(self.edit_preset)
+        self.btn_delete = QPushButton(self.tr("Delete"))
+        self.btn_delete.clicked.connect(self.delete_preset)
+
+        btn_layout.addWidget(self.btn_add)
+        btn_layout.addWidget(self.btn_edit)
+        btn_layout.addWidget(self.btn_delete)
+        btn_layout.addStretch()
+        layout.addLayout(btn_layout)
+
+        self.btn_close = QPushButton(self.tr("Close"))
+        self.btn_close.clicked.connect(self.accept)
+        layout.addWidget(self.btn_close, 0, Qt.AlignmentFlag.AlignRight)
+
+    def _refresh_list(self):
+        from src.core.config import COLOR_PRESETS
+
+        self.list.clear()
+
+        # Built-in (Read-only)
+        for name in COLOR_PRESETS:
+            item = QListWidgetItem(name)
+            # Use data to mark as built-in
+            item.setData(Qt.ItemDataRole.UserRole, True)
+            item.setForeground(QColor("#888"))
+            self.list.addItem(item)
+
+        # Custom
+        for name in self.settings.custom_presets:
+            item = QListWidgetItem(name)
+            item.setData(Qt.ItemDataRole.UserRole, False)
+            self.list.addItem(item)
+
+    def add_preset(self):
+        from src.core.config import COLOR_PRESETS
+
+        dialog = PresetEditorDialog(self)
+        if dialog.exec():
+            name = dialog.result_name
+            if name in self.settings.custom_presets or name in COLOR_PRESETS:
+                QMessageBox.warning(self, self.tr("Error"), self.tr("Preset name already exists."))
+                return
+            self.settings.custom_presets[name] = dialog.result_colors
+            self._refresh_list()
+
+    def edit_preset(self):
+        from src.core.config import COLOR_PRESETS
+
+        item = self.list.currentItem()
+        if not item or item.data(Qt.ItemDataRole.UserRole):  # Is built-in
+            return
+
+        name = item.text()
+        colors = self.settings.custom_presets.get(name)
+        dialog = PresetEditorDialog(self, name, colors)
+        if dialog.exec():
+            new_name = dialog.result_name
+            if new_name != name and (
+                new_name in self.settings.custom_presets or new_name in COLOR_PRESETS
+            ):
+                QMessageBox.warning(self, self.tr("Error"), self.tr("Preset name already exists."))
+                return
+
+            if new_name != name:
+                del self.settings.custom_presets[name]
+            self.settings.custom_presets[new_name] = dialog.result_colors
+            self._refresh_list()
+
+    def delete_preset(self):
+        item = self.list.currentItem()
+        if not item or item.data(Qt.ItemDataRole.UserRole):
+            return
+
+        name = item.text()
+        if (
+            QMessageBox.question(
+                self, self.tr("Confirm Delete"), self.tr("Delete preset '{}'?").format(name)
+            )
+            == QMessageBox.StandardButton.Yes
+            and name in self.settings.custom_presets
+        ):
+            del self.settings.custom_presets[name]
+            self._refresh_list()
 
 
 class SettingsWindow(QWidget):
@@ -1730,6 +2052,9 @@ class SettingsWindow(QWidget):
         self.preview_group = QGroupBox("Live Preview")
         preview_layout = QVBoxLayout()
         self.preview_widget = PiePreviewWidget()
+        self.preview_widget.update_unified_color(
+            self.settings.color_mode, self.settings.unified_color, self.settings.selected_preset
+        )
         preview_layout.addWidget(self.preview_widget, 0, Qt.AlignmentFlag.AlignCenter)
         preview_layout.addStretch()
         self.preview_group.setLayout(preview_layout)
@@ -1845,6 +2170,56 @@ class SettingsWindow(QWidget):
         self.dim_bg_checkbox.stateChanged.connect(self.set_dirty)
         adv_form.addRow(self.lbl_dim_bg, self.dim_bg_checkbox)
 
+        # Color Mode
+        self.lbl_color_mode = QLabel()
+        self.combo_color_mode = QComboBox()
+        self.combo_color_mode.addItem("Individual Colors", "individual")
+        self.combo_color_mode.addItem("Unified Color", "unified")
+        self.combo_color_mode.addItem("Color Presets", "preset")
+
+        idx = self.combo_color_mode.findData(self.settings.color_mode)
+        if idx >= 0:
+            self.combo_color_mode.setCurrentIndex(idx)
+
+        self.combo_color_mode.currentIndexChanged.connect(self.set_dirty)
+        self.combo_color_mode.currentIndexChanged.connect(self._update_color_mode_visibility)
+
+        # Unified Color Picker (Sub-option)
+        self.btn_unified_color = QPushButton()
+        self.btn_unified_color.setFixedWidth(40)
+        self.btn_unified_color.clicked.connect(self.pick_unified_color)
+        self._current_unified_color = self.settings.unified_color
+        self._update_unified_color_btn_style()
+
+        # Preset Picker (Sub-option)
+
+        self.preset_visual = ColorStripWidget()
+        self.btn_manage_presets = QPushButton()
+        self.btn_manage_presets.clicked.connect(self.manage_presets)
+
+        self.combo_preset = QComboBox()
+        self._refresh_preset_list()
+
+        idx_p = self.combo_preset.findData(self.settings.selected_preset)
+        if idx_p >= 0:
+            self.combo_preset.setCurrentIndex(idx_p)
+
+        color_mode_layout = QHBoxLayout()
+        color_mode_layout.addWidget(self.combo_color_mode)
+        color_mode_layout.addWidget(self.btn_unified_color)
+        color_mode_layout.addWidget(self.combo_preset)
+        color_mode_layout.addWidget(self.preset_visual)
+        color_mode_layout.addWidget(self.btn_manage_presets)
+        color_mode_layout.addStretch()
+        adv_form.addRow(self.lbl_color_mode, color_mode_layout)
+
+        # Connect signals
+        self.combo_color_mode.currentIndexChanged.connect(self.set_dirty)
+        self.combo_color_mode.currentIndexChanged.connect(self._update_color_mode_visibility)
+        self.combo_color_mode.currentIndexChanged.connect(self._on_color_mode_ui_changed)
+        self.combo_preset.currentIndexChanged.connect(self.set_dirty)
+        self.combo_preset.currentIndexChanged.connect(self._on_color_mode_ui_changed)
+
         # Font Family
         self.lbl_font_family = QLabel()
         self.font_family_combo = QFontComboBox()
@@ -1933,6 +2308,7 @@ class SettingsWindow(QWidget):
 
         # Apply initial visibility
         self._update_scale_visibility()
+        self._update_color_mode_visibility()
 
         # Bottom Save Row
         self.btn_save = QPushButton("Save & Apply")
@@ -2014,6 +2390,14 @@ class SettingsWindow(QWidget):
         self.lbl_dim_bg.setText(self.tr("Dim Background:"))
         self.dim_bg_checkbox.setText(self.tr("Darken the screen behind the menu"))
         self.lbl_font_family.setText(self.tr("Font Family:"))
+
+        self.lbl_color_mode.setText(self.tr("Color Mode:"))
+        self.combo_color_mode.setItemText(0, self.tr("Individual Colors"))
+        self.combo_color_mode.setItemText(1, self.tr("Unified Color"))
+        self.combo_color_mode.setItemText(2, self.tr("Color Presets"))
+        self.btn_unified_color.setToolTip(self.tr("Change Unified Color"))
+        self.combo_preset.setToolTip(self.tr("Select a Color Palette"))
+        self.btn_manage_presets.setText(self.tr("Edit Presets..."))
 
         self.group_behavior.setTitle(self.tr("Behavior"))
         self.lbl_show_animations.setText(self.tr("Animations:"))
@@ -2234,7 +2618,29 @@ class SettingsWindow(QWidget):
         self.replay_checkbox.setChecked(self.settings.replay_unselected)
         self.long_press_spin.setValue(self.settings.long_press_delay_ms)
         self.auto_scale_checkbox.setChecked(self.settings.auto_scale_with_menu)
+        self._update_scale_visibility()  # Ensure rows are hidden/shown
         self.key_delay_spin.setValue(getattr(self.settings, "key_sequence_delay_ms", 0))
+
+        # Language
+        lang_idx = self.combo_language.findData(self.settings.language)
+        if lang_idx >= 0:
+            self.combo_language.setCurrentIndex(lang_idx)
+
+        # Color Mode & Presets
+        self._current_unified_color = self.settings.unified_color
+        self._update_unified_color_btn_style()
+
+        # Update mode combo
+        idx = self.combo_color_mode.findData(self.settings.color_mode)
+        if idx >= 0:
+            self.combo_color_mode.setCurrentIndex(idx)
+
+        # Refresh custom presets from data
+        self._refresh_preset_list()
+
+        # Update visual strip and preview
+        self._on_color_mode_ui_changed()
+        self._update_color_mode_visibility()
 
         self.profile_list.clear()
         for p in self.profiles:
@@ -2322,8 +2728,13 @@ class SettingsWindow(QWidget):
         self.selected_item_widget = None
 
         # Re-add items
+        color_mode = (
+            self.combo_color_mode.currentData()
+            if hasattr(self, "combo_color_mode")
+            else getattr(self.settings, "color_mode", "individual")
+        )
         for item in items:
-            w = PieItemWidget(item)
+            w = PieItemWidget(item, color_mode=color_mode)
             w.clicked.connect(self.on_item_clicked)
             w.double_clicked.connect(self.edit_item)
             w.enter_submenu.connect(self.enter_submenu)
@@ -2673,6 +3084,10 @@ class SettingsWindow(QWidget):
         self.settings.long_press_delay_ms = self.long_press_spin.value()
         self.settings.auto_scale_with_menu = self.auto_scale_checkbox.isChecked()
         self.settings.key_sequence_delay_ms = self.key_delay_spin.value()
+        self.settings.color_mode = self.combo_color_mode.currentData()
+        self.settings.unified_color = self._current_unified_color
+        self.settings.selected_preset = self.combo_preset.currentData()
+        self.settings.language = self.combo_language.currentData()
 
         # Validate all profiles before saving
         seen_keys: dict[str, str] = {}
@@ -2740,3 +3155,87 @@ class SettingsWindow(QWidget):
                 event.ignore()
         else:
             event.accept()
+
+    def pick_unified_color(self) -> None:
+        """Open a color dialog to select the unified menu color."""
+        from PyQt6.QtWidgets import QColorDialog
+
+        color = QColorDialog.getColor(
+            QColor(self._current_unified_color), self, self.tr("Select Unified Color")
+        )
+        if color.isValid():
+            self._current_unified_color = color.name()
+            self._update_unified_color_btn_style()
+            self._on_color_mode_ui_changed()
+            self.set_dirty()
+
+    def _update_unified_color_btn_style(self) -> None:
+        """Update the background color of the unified color button."""
+        self.btn_unified_color.setStyleSheet(
+            f"background-color: {self._current_unified_color}; border: 1px solid #888;"
+        )
+
+    def _update_color_mode_visibility(self) -> None:
+        """Show/hide sub-options based on the selected color mode."""
+        mode = self.combo_color_mode.currentData()
+        self.btn_unified_color.setVisible(mode == "unified")
+        self.combo_preset.setVisible(mode == "preset")
+        self.preset_visual.setVisible(mode == "preset")
+        self.btn_manage_presets.setVisible(mode == "preset")
+
+    def _on_color_mode_ui_changed(self) -> None:
+        """Sync preview and visual strip with current color mode UI state."""
+        mode = self.combo_color_mode.currentData()
+        palette = self._get_current_palette() if mode == "preset" else []
+        self.preset_visual.set_palette(palette)
+
+        self.preview_widget.update_unified_color(
+            mode,
+            self._current_unified_color,
+            self.combo_preset.currentData(),
+            palette=palette,
+        )
+
+        # Update item list to hide/show individual color boxes
+        self.update_item_list()
+
+    def _refresh_preset_list(self) -> None:
+        """Populate the preset combo box with merged built-in and custom presets."""
+        from src.core.config import COLOR_PRESETS
+
+        self.combo_preset.blockSignals(True)
+        self.combo_preset.clear()
+
+        # Merge built-in and custom
+        for name in COLOR_PRESETS:
+            self.combo_preset.addItem(name, name)
+        for name in self.settings.custom_presets:
+            self.combo_preset.addItem(f"★ {name}", name)
+
+        # Try to restore selection
+        idx = self.combo_preset.findData(self.settings.selected_preset)
+        if idx >= 0:
+            self.combo_preset.setCurrentIndex(idx)
+        else:
+            self.combo_preset.setCurrentIndex(0)
+        self.combo_preset.blockSignals(False)
+
+    def _get_current_palette(self) -> list[str]:
+        """Get the color palette for the currently selected preset."""
+        preset_name = self.combo_preset.currentData()
+        if not preset_name:
+            return []
+
+        from src.core.config import COLOR_PRESETS
+
+        if preset_name in COLOR_PRESETS:
+            return COLOR_PRESETS[preset_name]
+        return self.settings.custom_presets.get(preset_name, [])
+
+    def manage_presets(self) -> None:
+        """Open the preset manager dialog."""
+        dialog = PresetManagerDialog(self, self.settings)
+        if dialog.exec():
+            self._refresh_preset_list()
+            self._on_color_mode_ui_changed()
+            self.set_dirty()

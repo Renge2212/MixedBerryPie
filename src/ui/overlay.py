@@ -26,7 +26,7 @@ from PyQt6.QtGui import (
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import QApplication, QWidget
 
-from src.core.config import AppSettings, PieSlice
+from src.core.config import COLOR_PRESETS, AppSettings, PieSlice
 from src.core.logger import get_logger
 from src.core.utils import resolve_icon_path
 
@@ -520,7 +520,9 @@ class PieOverlay(QWidget):
                 start_angle, angle_span, slice_rad_inner, slice_rad_outer, gap_px=6.0
             )
 
-            base_color = QColor(item.color)
+            # Determine effective color
+            effective_color_str = self._get_effective_color(item, i, num_items)
+            base_color = QColor(effective_color_str)
 
             # Use original opacity from settings
             opacity_percent = self.settings.menu_opacity
@@ -529,12 +531,12 @@ class PieOverlay(QWidget):
             # 2. Slice Fill
             if is_selected:
                 # Selected: Brighter fill
-                fill_color = QColor(item.color).lighter(130)
+                fill_color = QColor(effective_color_str).lighter(130)
                 fill_color.setAlpha(int(255 * opacity_percent / 100))
                 painter.fillPath(path_obj, QBrush(fill_color))
 
                 # Glow/Border outline in the item's color
-                glow_color = QColor(item.color)
+                glow_color = QColor(effective_color_str)
                 glow_color.setAlpha(200)
                 glow_pen = QPen(glow_color, 3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
                 glow_pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
@@ -545,7 +547,7 @@ class PieOverlay(QWidget):
 
             # Draw Label and Icon
             self._draw_item_content(
-                painter, item, start_angle + angle_span / 2, rad_inner, rad_outer
+                painter, item, i, num_items, start_angle + angle_span / 2, rad_inner, rad_outer
             )
 
         # Recursively draw the next layer if an item is selected and has submenus
@@ -630,10 +632,30 @@ class PieOverlay(QWidget):
         path.closeSubpath()
         return path
 
+    def _get_effective_color(self, item: PieSlice, index: int, total: int) -> str:
+        """Get the color to use for a slice based on current color mode."""
+        mode = self.settings.color_mode
+        if mode == "unified":
+            return self.settings.unified_color
+        elif mode == "preset":
+            palette = COLOR_PRESETS.get(self.settings.selected_preset)
+            if not palette:
+                palette = self.settings.custom_presets.get(self.settings.selected_preset, [])
+
+            if palette:
+                color_idx = index % len(palette)
+                # Adjacency fix for circular menus: if last item matches first item (index 0), shift it
+                if total > 1 and index == total - 1 and color_idx == 0 and len(palette) > 1:
+                    color_idx = (color_idx + 1) % len(palette)
+                return palette[color_idx]
+        return item.color
+
     def _draw_item_content(
         self,
         painter: QPainter,
         item: PieSlice,
+        index: int,
+        total: int,
         mid_angle: float,
         rad_inner: float,
         rad_outer: float,
@@ -700,11 +722,12 @@ class PieOverlay(QWidget):
             painter.setFont(font)
 
         # Determine text color based on background luminance if enabled
+        effective_color_str = self._get_effective_color(item, index, total)
         text_color = Qt.GlobalColor.white
-        outline_color = QColor(item.color).darker(150)
+        outline_color = QColor(effective_color_str).darker(150)
 
         if self.settings.dynamic_text_color:
-            bg_color = QColor(item.color)
+            bg_color = QColor(effective_color_str)
             # Relative luminance formula (approximate)
             luminance = (
                 0.299 * bg_color.red() + 0.587 * bg_color.green() + 0.114 * bg_color.blue()
@@ -712,7 +735,7 @@ class PieOverlay(QWidget):
             if luminance > 0.6:  # Bright background
                 text_color = Qt.GlobalColor.black
                 # Use a lighter outline for black text on bright backgrounds
-                outline_color = QColor(item.color).lighter(150)
+                outline_color = QColor(effective_color_str).lighter(150)
 
         # Calculate text position
         if item.icon_path:

@@ -207,6 +207,19 @@ class PieSlice:
     submenu_items: list["PieSlice"] = field(default_factory=list)
 
 
+# Beautiful thematic color palettes for the "Preset" mode
+COLOR_PRESETS = {
+    "Mixed Berry": ["#FF5252", "#448AFF", "#69F0AE", "#FFD740", "#40C4FF", "#B0BEC5"],
+    "Vibrant": ["#E91E63", "#9C27B0", "#2196F3", "#00BCD4", "#4CAF50", "#FFC107"],
+    "Pastel": ["#FFB7B2", "#FFDAC1", "#E2F0CB", "#B5EAD7", "#C7CEEA", "#6EB5FF"],
+    "Ocean": ["#00B4D8", "#0077B6", "#023E8A", "#03045E", "#90E0EF", "#CAF0F8"],
+    "Forest": ["#2D6A4F", "#40916C", "#52B788", "#74C69D", "#95D5B2", "#B7E4C7"],
+    "Cyberpunk": ["#F0ED69", "#69F0ED", "#ED69F0", "#F06969", "#69EDF0", "#6972F0"],
+    "Monochrome": ["#212121", "#424242", "#616161", "#757575", "#9E9E9E", "#BDBDBD"],
+    "Fire": ["#D00000", "#FF0000", "#FF4800", "#FF7B00", "#FFB700", "#FFD000"],
+}
+
+
 @dataclass
 class AppSettings:
     """Application-wide settings.
@@ -241,6 +254,10 @@ class AppSettings:
     enable_text_outline: bool = True
     dim_background: bool = False
     dynamic_text_color: bool = False
+    color_mode: str = "individual"  # 'individual', 'unified', 'preset'
+    unified_color: str = "#448AFF"
+    selected_preset: str = "Mixed Berry"
+    custom_presets: dict[str, list[str]] = field(default_factory=dict)
     first_run: bool = True
 
 
