@@ -1574,7 +1574,7 @@ class SettingsWindow(QWidget):
         self.is_dirty = False
         self.settings = config.AppSettings()
         # self.setWindowTitle set in retranslateUi
-        self.resize(750, 600)  # Adjusted size for sidebar
+        self.resize(900, 750)  # Increased size for better visibility of list and tab contents
 
         icon_path = get_resource_path(os.path.join("resources", "app_icon.ico"))
         self.setWindowIcon(QIcon(icon_path))
@@ -1740,11 +1740,23 @@ class SettingsWindow(QWidget):
         self.tabs.addTab(menu_tab, "")
         self.menu_tab_idx = self.tabs.indexOf(menu_tab)
 
-        # Tab 2: Global Settings
-        settings_tab = QWidget()
-        settings_layout = QVBoxLayout()
-        settings_layout.setSpacing(10)
-        settings_tab.setLayout(settings_layout)
+        # Tab 2: Appearance
+        appearance_tab = QWidget()
+        appearance_layout = QVBoxLayout()
+        appearance_layout.setSpacing(10)
+        appearance_tab.setLayout(appearance_layout)
+
+        # Tab 3: Behavior
+        behavior_tab = QWidget()
+        behavior_layout = QVBoxLayout()
+        behavior_layout.setSpacing(10)
+        behavior_tab.setLayout(behavior_layout)
+
+        # Tab 4: System
+        system_tab = QWidget()
+        system_layout = QVBoxLayout()
+        system_layout.setSpacing(10)
+        system_tab.setLayout(system_layout)
 
         # ── Group 1: 言語 ─────────────────────────────────────────
         self.group_language = QGroupBox()
@@ -1763,7 +1775,7 @@ class SettingsWindow(QWidget):
         lang_form.addRow(self.lbl_language, self.combo_language)
 
         self.group_language.setLayout(lang_form)
-        settings_layout.addWidget(self.group_language)
+        system_layout.addWidget(self.group_language)
 
         # ── Group 2: 表示 ─────────────────────────────────────────
         self.group_adv = QGroupBox()
@@ -1840,19 +1852,20 @@ class SettingsWindow(QWidget):
         self.font_family_combo.currentFontChanged.connect(self.set_dirty)
         adv_form.addRow(self.lbl_font_family, self.font_family_combo)
 
-        self.group_adv.setLayout(adv_form)
-        settings_layout.addWidget(self.group_adv)
-
-        # ── Group 3: 動作 ─────────────────────────────────────────
-        self.group_behavior = QGroupBox()
-        behavior_form = QFormLayout()
-
-        # Animations
+        # Animations (Moved to Appearance)
         self.lbl_show_animations = QLabel()
         self.show_animations_checkbox = QCheckBox()
         self.show_animations_checkbox.setChecked(self.settings.show_animations)
         self.show_animations_checkbox.stateChanged.connect(self.set_dirty)
-        behavior_form.addRow(self.lbl_show_animations, self.show_animations_checkbox)
+        adv_form.addRow(self.lbl_show_animations, self.show_animations_checkbox)
+
+        self.group_adv.setLayout(adv_form)
+        appearance_layout.addWidget(self.group_adv)
+        appearance_layout.addStretch()
+
+        # ── Group 3: 動作 ─────────────────────────────────────────
+        self.group_behavior = QGroupBox()
+        behavior_form = QFormLayout()
 
         # Action delay
         self.lbl_action_delay = QLabel()
@@ -1871,7 +1884,7 @@ class SettingsWindow(QWidget):
         behavior_form.addRow(self.lbl_key_delay, self.key_delay_spin)
 
         self.group_behavior.setLayout(behavior_form)
-        settings_layout.addWidget(self.group_behavior)
+        behavior_layout.addWidget(self.group_behavior)
 
         # ── Group 4: トリガー動作 ─────────────────────────────────
         self.group_trigger_behavior = QGroupBox()
@@ -1891,7 +1904,8 @@ class SettingsWindow(QWidget):
         trigger_behavior_layout.addRow(self.lbl_long_press, self.long_press_spin)
 
         self.group_trigger_behavior.setLayout(trigger_behavior_layout)
-        settings_layout.addWidget(self.group_trigger_behavior)
+        behavior_layout.addWidget(self.group_trigger_behavior)
+        behavior_layout.addStretch()
 
         # ── Group 5: バックアップ ─────────────────────────────────
         self.group_backup = QGroupBox()
@@ -1905,12 +1919,17 @@ class SettingsWindow(QWidget):
         backup_layout.addWidget(self.btn_export)
         backup_layout.addWidget(self.btn_import)
         self.group_backup.setLayout(backup_layout)
-        settings_layout.addWidget(self.group_backup)
+        system_layout.addWidget(self.group_backup)
+        system_layout.addStretch()
 
-        settings_layout.addStretch()
+        self.tabs.addTab(appearance_tab, "")
+        self.appearance_tab_idx = self.tabs.indexOf(appearance_tab)
 
-        self.tabs.addTab(settings_tab, "")
-        self.settings_tab_idx = self.tabs.indexOf(settings_tab)
+        self.tabs.addTab(behavior_tab, "")
+        self.behavior_tab_idx = self.tabs.indexOf(behavior_tab)
+
+        self.tabs.addTab(system_tab, "")
+        self.system_tab_idx = self.tabs.indexOf(system_tab)
 
         # Apply initial visibility
         self._update_scale_visibility()
@@ -1953,8 +1972,10 @@ class SettingsWindow(QWidget):
         self.btn_del_p.setToolTip(self.tr("Delete Profile"))
 
         # Tabs
-        self.tabs.setTabText(self.menu_tab_idx, self.tr("Menu Items"))
-        self.tabs.setTabText(self.settings_tab_idx, self.tr("General Settings"))
+        self.tabs.setTabText(self.menu_tab_idx, self.tr("Profiles"))
+        self.tabs.setTabText(self.appearance_tab_idx, self.tr("Appearance"))
+        self.tabs.setTabText(self.behavior_tab_idx, self.tr("Behavior"))
+        self.tabs.setTabText(self.system_tab_idx, self.tr("System"))
 
         # Trigger
         self.group_trigger.setTitle(self.tr("Trigger Key"))
