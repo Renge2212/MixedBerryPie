@@ -731,6 +731,7 @@ class PieOverlay(QWidget):
         # Setup Font
         if self._item_font:
             painter.setFont(self._item_font)
+            font = self._item_font
         else:
             font = QFont(self.settings.font_family)
             font.setBold(True)
@@ -765,16 +766,47 @@ class PieOverlay(QWidget):
             text_rect = QRectF(cx - 60, cy - 20, 120, 40)
             flags = Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap
 
+        # Ensure we have a valid label before painting
+        label_text = item.label or ""
+        if not label_text:
+            return
+
         if self.settings.enable_text_outline:
-            painter.setPen(outline_color)
+            # Create a painter path for the text to draw outline and fill efficiently
+            text_path = QPainterPath()
 
-            # 1px outline
-            for dx, dy in [(-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1)]:
-                painter.drawText(text_rect.translated(dx, dy), flags, item.label)
-            # 2px outline for a slightly thicker, softer edge
-            for dx, dy in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
-                painter.drawText(text_rect.translated(dx, dy), flags, item.label)
+            # We need to manually calculate the bounding box for center alignment since
+            # addText doesn't natively support Qt.AlignmentFlag layout like drawText does.
+            metrics = painter.fontMetrics()
+            text_width = metrics.horizontalAdvance(label_text)
 
-        # Draw Main Label
-        painter.setPen(text_color)
-        painter.drawText(text_rect, flags, item.label)
+            # Y position formulation: PyQt addText uses the baseline of the font.
+            # AlignTop (with icon) vs AlignCenter (no icon)
+            if item.icon_path:
+                text_x = cx - (text_width / 2)
+                text_y = text_rect.top() + metrics.ascent()
+            else:
+                text_x = cx - (text_width / 2)
+                text_y = cy + (metrics.ascent() / 2) - (metrics.descent() / 2)
+
+            text_path.addText(text_x, text_y, font, label_text)
+
+            # Draw Outline (Stroke)
+            outline_pen = QPen(
+                outline_color,
+                2.5,
+                Qt.PenStyle.SolidLine,
+                Qt.PenCapStyle.RoundCap,
+                Qt.PenJoinStyle.RoundJoin,
+            )
+            painter.setPen(outline_pen)
+            painter.drawPath(text_path)
+
+            # Draw Fill
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QBrush(QColor(text_color)))
+            painter.drawPath(text_path)
+        else:
+            # Fallback to standard drawText if outline is disabled
+            painter.setPen(QColor(text_color))
+            painter.drawText(text_rect, flags, label_text)
