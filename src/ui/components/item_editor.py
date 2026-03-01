@@ -10,10 +10,12 @@ from PyQt6.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QMessageBox,
+    QPlainTextEdit,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
+    QWidget,
 )
 
 from src.core import config
@@ -85,11 +87,28 @@ class ItemEditorDialog(QDialog):
         form_container = QVBoxLayout()
         form_layout = QFormLayout()
 
-        self.label_edit = QLineEdit(item.label if item else "")
+        self.label_edit = QPlainTextEdit(item.label if item else "")
         self.label_edit.setPlaceholderText(self.tr("e.g. Copy, Paste, Brush..."))
+        self.label_edit.setFixedHeight(52)  # ~2 lines
+        self.label_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self._label_limit_guard = False
+        self.label_edit.textChanged.connect(self._enforce_label_max_lines)
         self.label_edit.textChanged.connect(self._update_preview)
+
+        # Line counter hint (e.g. "1/2行")
+        self.lbl_line_count = QLabel()
+        self.lbl_line_count.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.lbl_line_count.setStyleSheet("color: gray; font-size: 10px;")
+        label_container = QVBoxLayout()
+        label_container.setSpacing(1)
+        label_container.setContentsMargins(0, 0, 0, 0)
+        label_container.addWidget(self.label_edit)
+        label_container.addWidget(self.lbl_line_count)
+        label_widget = QWidget()
+        label_widget.setLayout(label_container)
+
         self.lbl_label = QLabel()  # Store reference for retranslation
-        form_layout.addRow(self.lbl_label, self.label_edit)
+        form_layout.addRow(self.lbl_label, label_widget)
 
         # Action Type
         self.lbl_action_type = QLabel()
@@ -227,6 +246,7 @@ class ItemEditorDialog(QDialog):
 
         self._update_icon_preview()  # This will also call _update_preview()
         self.retranslateUi()
+        self._enforce_label_max_lines()  # Initialize line counter display
 
     def retranslateUi(self):
         title = self.tr("Edit Item") if self.item else self.tr("Add Item")
@@ -288,8 +308,26 @@ class ItemEditorDialog(QDialog):
         )
         self.color_btn.setText(self.current_color)
 
+    def _enforce_label_max_lines(self) -> None:
+        """Truncate label to max 2 lines."""
+        if self._label_limit_guard:
+            return
+        text = self.label_edit.toPlainText()
+        lines = text.split("\n")
+        if len(lines) > 2:
+            self._label_limit_guard = True
+            cursor = self.label_edit.textCursor()
+            self.label_edit.setPlainText("\n".join(lines[:2]))
+            # Restore cursor to end
+            cursor.movePosition(cursor.MoveOperation.End)
+            self.label_edit.setTextCursor(cursor)
+            self._label_limit_guard = False
+        # Update line counter
+        current_lines = min(len(lines), 2)
+        self.lbl_line_count.setText(self.tr("{0}/2 lines").format(current_lines))
+
     def _update_preview(self):
-        label = self.label_edit.text() or "サンプル"
+        label = self.label_edit.toPlainText() or "サンプル"
         # For preview, we show a dummy menu with 4 items including the current one
         temp_item = PieSlice(
             label=label, key="", color=self.current_color, icon_path=self.icon_path
@@ -393,7 +431,7 @@ class ItemEditorDialog(QDialog):
                 btn.setEnabled(False)
 
     def save(self):
-        label = self.label_edit.text().strip()
+        label = self.label_edit.toPlainText().strip()
         action_type = self.action_type_combo.currentData()
         key = "" if action_type == "submenu" else self.key_edit.text().strip()
 

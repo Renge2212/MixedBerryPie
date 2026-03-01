@@ -742,7 +742,7 @@ class PieOverlay(QWidget):
         if not label_text:
             return
 
-        label = label_text[:6] + ".." if len(label_text) > 8 else label_text
+        label = label_text
 
         # Calculate logical bounds simply to make aligned rendering easier
         if item.icon_path:

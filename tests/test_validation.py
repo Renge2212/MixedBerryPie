@@ -22,7 +22,7 @@ def test_conflict_trigger_key(validation_setup):
     """Test that setting action key same as trigger key shows warning"""
     dialog, mock_msgbox = validation_setup
 
-    dialog.label_edit.setText("Test Item")
+    dialog.label_edit.setPlainText("Test Item")
     # Set action type to 'key' (use findData because text is translated)
     index = dialog.action_type_combo.findData("key")
     dialog.action_type_combo.setCurrentIndex(index)
@@ -50,7 +50,7 @@ def test_no_conflict_different_key(validation_setup):
     """Test that setting a different key allows saving"""
     dialog, mock_msgbox = validation_setup
 
-    dialog.label_edit.setText("Test Item")
+    dialog.label_edit.setPlainText("Test Item")
     index = dialog.action_type_combo.findData("key")
     dialog.action_type_combo.setCurrentIndex(index)
     dialog.key_edit.setText("a")

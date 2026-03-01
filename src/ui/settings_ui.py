@@ -922,9 +922,28 @@ class SettingsWindow(QWidget):
             # Insert before the stretch (which is at index count()-1)
             self.items_layout.insertWidget(self.items_layout.count() - 1, w)
 
-        # Sync preview
+        # Sync preview with submenu context
         if hasattr(self, "preview_widget"):
-            self.preview_widget.update_items(items)
+            depth = len(self._nav_stack)
+            parent_items_stack: list[list[PieSlice]] = []
+            selected_indices: list[int] = []
+            if depth > 0 and self.current_profile_idx != -1:
+                root_items = self.profiles[self.current_profile_idx].items
+                parent_items_stack.append(list(root_items))
+                # Compute selected index at each ancestor level
+                current_list: list[PieSlice] = root_items
+                for ancestor in self._nav_stack:
+                    try:
+                        idx = current_list.index(ancestor)
+                    except ValueError:
+                        # Fallback: search by identity
+                        idx = next((j for j, it in enumerate(current_list) if it is ancestor), 0)
+                    selected_indices.append(idx)
+                    # Build parent items stack for depths below current
+                    if ancestor is not self._nav_stack[-1]:
+                        parent_items_stack.append(list(ancestor.submenu_items))
+                    current_list = list(ancestor.submenu_items)
+            self.preview_widget.update_context(items, depth, parent_items_stack, selected_indices)
 
     def on_item_clicked(self, widget):
         # Deselect previous

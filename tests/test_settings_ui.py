@@ -145,7 +145,7 @@ def test_item_editor_submenu_mode(qapp):
     assert dialog.submenu_hint_label.isHidden() is False
 
     # Save validation
-    dialog.label_edit.setText("My Submenu")
+    dialog.label_edit.setPlainText("My Submenu")
 
     with patch.object(dialog, "accept") as mock_accept:
         dialog.save()
