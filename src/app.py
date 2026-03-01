@@ -76,7 +76,6 @@ class MixedBerryPieApp(QObject):
         # Long press support
         self.long_press_timer = QTimer(self)
         self.long_press_timer.setSingleShot(True)
-        self.long_press_timer.timeout.connect(self._show_overlay_after_delay)
         self.pending_profile: MenuProfile | None = None
 
         self.setup_tray()
@@ -141,11 +140,13 @@ class MixedBerryPieApp(QObject):
             self.long_press_timer.stop, Qt.ConnectionType.QueuedConnection
         )
         self.key_signal.do_show_signal.connect(  # type: ignore
-            self._do_show_overlay, Qt.ConnectionType.QueuedConnection
+            self._do_show_overlay_dynamic, Qt.ConnectionType.QueuedConnection
         )
 
-        # Connect Overlay action signal to execution
-        self.overlay.action_selected.connect(self.execute_action)
+        # Overlay signals
+        self.overlay.action_selected.connect(self._on_action_selected)
+        self.overlay.center_hovered.connect(self._on_center_hovered)
+        self.overlay.center_exited.connect(self._on_center_exited)
 
     def setup_tray(self) -> None:
         """Initialize and display the system tray icon."""
@@ -293,17 +294,18 @@ class MixedBerryPieApp(QObject):
                     self.pending_profile = selected_profile
                     self.key_signal.timer_start_signal.emit(delay)
 
-    def _show_overlay_after_delay(self) -> None:
-        """Called by QTimer after long press delay."""
-        if self.pending_profile:
-            app_logger.debug(f"Long press delay met, showing profile: {self.pending_profile.name}")
-            self._do_show_overlay(self.pending_profile)
-            self.pending_profile = None
+    def _do_show_overlay_dynamic(self, payload: Any) -> None:
+        """Actually show the overlay using a profile or direct list of items."""
+        if isinstance(payload, MenuProfile):
+            app_logger.info(f"App: _do_show_overlay called for profile: {payload.name}")
+            self.overlay.menu_items = payload.items
+        else:
+            # Assumed to be list[PieSlice] for submenus
+            app_logger.info(
+                f"App: _do_show_overlay called for nested items of length {len(payload)}"
+            )
+            self.overlay.menu_items = payload
 
-    def _do_show_overlay(self, profile: MenuProfile) -> None:
-        """Actually show the overlay."""
-        app_logger.info(f"App: _do_show_overlay called for profile: {profile.name}")
-        self.overlay.menu_items = profile.items
         self.is_menu_visible = True
         self.key_signal.show_signal.emit()
 
@@ -316,7 +318,7 @@ class MixedBerryPieApp(QObject):
             return not self.settings.replay_unselected
 
         if self.is_menu_visible:
-            was_selected = self.overlay.selected_index != -1
+            was_selected = bool(self.overlay.active_path)
             app_logger.debug(f"Trigger {trigger_key} released, item selected: {was_selected}")
             self.is_menu_visible = False
             self.key_signal.hide_signal.emit(True)
@@ -326,7 +328,7 @@ class MixedBerryPieApp(QObject):
                 return not self.settings.replay_unselected
         return False
 
-    def execute_action(self, item_key: str, action_type: str = "key") -> None:
+    def _on_action_selected(self, item_key: str, action_type: str, item: Any = None) -> None:
         """Execute the selected action after a brief delay."""
         app_logger.info(f"Queuing action: {item_key} (type: {action_type})")
         delay_ms = self.settings.action_delay_ms
@@ -337,9 +339,23 @@ class MixedBerryPieApp(QObject):
             ).start(),
         )
 
+    def _on_center_hovered(self) -> None:
+        """Handle when the mouse hovers over the center of the pie menu."""
+        app_logger.debug("Center hovered")
+        # Optionally, you could show a tooltip or change the center icon here
+
+    def _on_center_exited(self) -> None:
+        """Handle when the mouse exits the center of the pie menu."""
+        app_logger.debug("Center exited")
+        # Optionally, revert any changes made by _on_center_hovered
+
     def _do_execute(self, value: str, action_type: str) -> None:
         """Internal method to execute actions (runs in a worker thread)."""
         app_logger.info(f"Executing action: {value} ({action_type})")
+        if not value:
+            app_logger.info("Empty action value, skipping execution.")
+            return
+
         try:
             if action_type == "url":
                 webbrowser.open(value)

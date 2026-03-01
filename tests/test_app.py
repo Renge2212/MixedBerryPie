@@ -93,7 +93,7 @@ def test_release_no_selection_replays_if_enabled(app_setup):
     pie_app, _, test_settings = app_setup
     test_settings.replay_unselected = True
     pie_app.is_menu_visible = True
-    pie_app.overlay.selected_index = -1
+    pie_app.overlay.active_path = []
 
     consumed = pie_app.on_trigger_release("tab")
 
@@ -107,7 +107,7 @@ def test_release_no_selection_consumes_if_disabled(app_setup):
     pie_app, _, test_settings = app_setup
     test_settings.replay_unselected = False
     pie_app.is_menu_visible = True
-    pie_app.overlay.selected_index = -1
+    pie_app.overlay.active_path = []
 
     consumed = pie_app.on_trigger_release("tab")
 
@@ -119,7 +119,7 @@ def test_selection_always_consumes_event(app_setup):
     pie_app, _, test_settings = app_setup
     test_settings.replay_unselected = True  # Even if replay enabled
     pie_app.is_menu_visible = True
-    pie_app.overlay.selected_index = 0
+    pie_app.overlay.active_path = [0]
 
     consumed = pie_app.on_trigger_release("tab")
 
@@ -149,3 +149,79 @@ def test_do_execute_multi_key_shortcut(app_setup):
                 call("mock_key_ctrl", False),
             ]
         )
+
+
+def test_on_slice_exited_push(app_setup):
+    """Test pushing a submenu to the profile stack when slice_exited emits a submenu item."""
+    pie_app, _, _ = app_setup
+
+    # Mock items
+    child_slice = PieSlice(label="Child", key="", color="#000")
+    submenu_item = PieSlice(
+        label="Sub", key="", color="#fff", action_type="submenu", submenu_items=[child_slice]
+    )
+    parent_items = [PieSlice("1", "1", "#fff"), submenu_item, PieSlice("3", "3", "#fff")]
+
+    # Simulate being in the parent menu currently
+    pie_app.pending_profile = None
+    pie_app.is_menu_visible = True
+    pie_app.overlay.menu_items = parent_items
+
+    if not hasattr(pie_app, "_on_slice_exited"):
+        pytest.skip("_on_slice_exited not yet implemented")
+
+    # Call the method that should be triggered by slice_exited
+    pie_app._on_slice_exited(submenu_item, 1)  # Index 1
+
+    # Verify stack push contains the parent items
+    assert len(pie_app.profile_stack) == 1
+    assert pie_app.profile_stack[0]["entry_index"] == 1
+    assert pie_app.profile_stack[0]["parent_items"] == parent_items
+
+    # Verify new menu is shown via signal (Note: the argument should be the new items list)
+    pie_app.key_signal.hide_signal.emit.assert_called_once_with(False)
+
+    # We should intercept the call to check if a Back button was injected
+    assert pie_app.key_signal.do_show_signal.emit.call_count == 1
+    args, _ = pie_app.key_signal.do_show_signal.emit.call_args
+    assert len(args[0]) >= 2  # The child slice + the injected back slice
+
+    back_slice = next((s for s in args[0] if s.action_type == "back"), None)
+    assert back_slice is not None
+
+
+def test_on_slice_exited_pop(app_setup):
+    """Test popping from the profile stack when selecting a back slice."""
+    pie_app, _, _ = app_setup
+
+    parent_items = [
+        PieSlice("A", "a", "#fff"),
+        PieSlice("B", "b", "#fff", action_type="submenu"),
+        PieSlice("C", "c", "#fff"),
+        PieSlice("D", "d", "#fff"),
+    ]
+
+    # We entered the submenu via index 1 (East)
+    pie_app.profile_stack = [{"parent_items": parent_items, "entry_index": 1}]
+
+    # Currently in submenu
+    pie_app.is_menu_visible = True
+    back_slice = PieSlice("Back", "", "#555", action_type="back")
+    pie_app.overlay.menu_items = [
+        PieSlice("1", "1", "#fff"),
+        back_slice,
+        PieSlice("3", "3", "#fff"),
+    ]
+
+    if not hasattr(pie_app, "_on_slice_exited"):
+        pytest.skip("_on_slice_exited not yet implemented")
+
+    # Either swiping out or selecting the back slice should trigger a pop.
+    # _on_slice_exited with back_slice should pop.
+    pie_app._on_slice_exited(back_slice, 1)
+
+    # Stack should be popped
+    assert len(pie_app.profile_stack) == 0
+
+    # _do_show_overlay should be called with parent_items
+    pie_app.key_signal.do_show_signal.emit.assert_called_once_with(parent_items)

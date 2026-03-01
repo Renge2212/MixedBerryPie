@@ -35,9 +35,8 @@ def refine_xml_format(path: str) -> None:
             if tag_name in containers:
                 indent -= 1
                 lines.append("    " * indent + part)
-            else:
-                if lines:
-                    lines[-1] = lines[-1] + part
+            elif lines:
+                lines[-1] = lines[-1] + part
         elif part.startswith("<") and not part.endswith("/>") and not part.startswith("<?"):
             tag_match = re.match(r"<([^> ]+)", part)
             tag_name = tag_match.group(1) if tag_match else ""
@@ -48,9 +47,8 @@ def refine_xml_format(path: str) -> None:
                 lines.append("    " * indent + part)
         elif part.startswith("<"):
             lines.append("    " * indent + part)
-        else:
-            if lines:
-                lines[-1] = lines[-1] + part
+        elif lines:
+            lines[-1] = lines[-1] + part
 
     final_content = "\n".join(lines)
     final_content = re.sub(r"<\?xml(.*?)\?><TS", r"<?xml\1?>\n<TS", final_content)

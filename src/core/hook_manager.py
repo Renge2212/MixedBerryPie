@@ -282,7 +282,6 @@ class HookManager:
         self.on_trigger_release_callback = on_trigger_release
 
         self._listener: Any = None
-        self._controller = pynput_keyboard.Controller()
         self._state_lock = threading.Lock()
 
         # {primary_key_name: [(sorted_modifier_tuple, full_trigger_str), ...]}

@@ -17,7 +17,31 @@ repos:
         pass_filenames: false
         additional_dependencies: [pyqt6, keyboard, Pillow, types-Pillow, pytest, defusedxml, types-defusedxml]
 
+  - repo: https://github.com/jendrikseipp/vulture
+    rev: v2.14
+    hooks:
+      - id: vulture
+        args: ["src"]
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.3
+    hooks:
+      - id: bandit
+        args: ["-c", "pyproject.toml"]
+
   - repo: local
+    hooks:
+      - id: pip-audit
+        name: pip-audit
+        entry: uv run pip-audit
+        language: system
+        pass_filenames: false
+      - id: xenon
+        name: xenon
+        entry: uv run xenon src --max-absolute B --max-modules A --max-average A
+        language: system
+        pass_filenames: false
+      - id: pytest
     hooks:
       - id: pytest
         name: pytest

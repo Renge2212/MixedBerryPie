@@ -11,7 +11,7 @@ from src.ui.settings_ui import ItemEditorDialog, SettingsWindow
 @pytest.fixture
 def validation_setup(qapp):
     """Fixture for ItemEditorDialog tests"""
-    with patch("src.ui.settings_ui.QMessageBox") as mock_msgbox:
+    with patch("src.ui.components.item_editor.QMessageBox") as mock_msgbox:
         dialog = ItemEditorDialog(trigger_key="tab")
         yield dialog, mock_msgbox
         dialog.close()
@@ -22,9 +22,9 @@ def test_conflict_trigger_key(validation_setup):
     """Test that setting action key same as trigger key shows warning"""
     dialog, mock_msgbox = validation_setup
 
-    dialog.label_edit.setText("Test Item")
-    # Set action type to 'key'
-    index = dialog.action_type_combo.findText("key")
+    dialog.label_edit.setPlainText("Test Item")
+    # Set action type to 'key' (use findData because text is translated)
+    index = dialog.action_type_combo.findData("key")
     dialog.action_type_combo.setCurrentIndex(index)
 
     # Set key to trigger key 'tab' (case insensitive check)
@@ -50,8 +50,8 @@ def test_no_conflict_different_key(validation_setup):
     """Test that setting a different key allows saving"""
     dialog, mock_msgbox = validation_setup
 
-    dialog.label_edit.setText("Test Item")
-    index = dialog.action_type_combo.findText("key")
+    dialog.label_edit.setPlainText("Test Item")
+    index = dialog.action_type_combo.findData("key")
     dialog.action_type_combo.setCurrentIndex(index)
     dialog.key_edit.setText("a")
 

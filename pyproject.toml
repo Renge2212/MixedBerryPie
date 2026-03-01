@@ -1,6 +1,6 @@
 [project]
 name = "mixedberrypie"
-version = "1.2.0"
+version = "1.3.0"
 description = "A sleek, customizable radial pie menu for quick keyboard shortcuts on Windows."
 authors = [
     {name = "Renge2212"}
@@ -28,6 +28,9 @@ dev = [
     "pip-audit>=2.7.0",
     "defusedxml>=0.7.1",
     "types-defusedxml>=0.7.0.20250822",
+    "vulture>=2.14",
+    "bandit>=1.8.0",
+    "xenon>=0.9.3",
 ]
 
 [tool.ruff]
@@ -59,6 +62,8 @@ select = [
     "A",   # flake8-builtins
     "S",   # flake8-bandit (security)
     "RUF", # Ruff-specific rules
+    "C90", # mccabe complexity
+    "PLR", # Pylint Refactor (complexity)
 ]
 ignore = [
     "E501",  # line too long (handled by formatter)
@@ -67,6 +72,12 @@ ignore = [
     "RUF001", # ambiguous unicode characters (intentional in UI strings)
     "RUF013", # implicit optional (PEP 484 allows this)
     "S603",  # subprocess without shell=True (we validate inputs)
+    "PLR2004", # magic value used in comparison (too noisy in tests/math)
+    "PLR1722", # Use sys.exit() instead of exit (okay for simple scripts)
+    "PLR0911", # Too many return statements (math/validation logic)
+    "PLR0912", # Too many branches (inherent in radial logic/event filters)
+    "PLR0913", # Too many arguments in function definition (painter methods)
+    "PLR0915", # Too many statements (PyQt __init__ methods)
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -120,3 +131,41 @@ module = "pynput.*"
 ignore_missing_imports = true
 
 
+
+[tool.vulture]
+exclude = ["*resources*", ".venv", "tests"]
+ignore_decorators = ["@slot", "@QtSlot"]
+ignore_names = [
+    "paintEvent",
+    "closeEvent",
+    "resizeEvent",
+    "mousePressEvent",
+    "mouseReleaseEvent",
+    "mouseMoveEvent",
+    "keyPressEvent",
+    "keyReleaseEvent",
+    "expandingDirections",
+    "hasHeightForWidth",
+    "heightForWidth",
+    "sizeHint",
+    "minimumSize",
+    "takeAt",
+    "itemAt",
+    "count",
+    "addItem",
+    "setGeometry",
+]
+min_confidence = 80
+
+[tool.bandit]
+exclude_dirs = ["tests", "resources"]
+skips = ["B101"]  # B101 is 'assert', handled by ruff per-file-ignores
+
+[tool.xenon]
+max-absolute = "B"
+max-modules = "A"
+max-average = "A"
+exclude = "resources,tests,.venv"
+
+[tool.ruff.lint.mccabe]
+max-complexity = 25

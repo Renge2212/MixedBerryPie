@@ -16,9 +16,6 @@ from src.core.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Project root resolution
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 # Config Path Resolution (AppData)
 APP_NAME = "MixedBerryPie"
 APPDATA = os.getenv("LOCALAPPDATA", os.path.expanduser("~"))
@@ -27,9 +24,6 @@ CONFIG_FILE = os.path.join(CONFIG_DIR, "menu_config.json")
 ICON_HISTORY_FILE = os.path.join(CONFIG_DIR, "icon_history.json")
 USER_ICONS_DIR = os.path.join(CONFIG_DIR, "user_icons")
 ICON_HISTORY_MAX = 100
-
-# Legacy Config Path (for migration)
-LEGACY_CONFIG_FILE = os.path.join(PROJECT_ROOT, "menu_config.json")
 
 
 def _ensure_config_dir() -> None:
@@ -202,8 +196,22 @@ class PieSlice:
     label: str
     key: str
     color: str
-    action_type: str = "key"  # 'key', 'url', 'cmd'
+    action_type: str = "key"  # 'key', 'url', 'cmd', 'submenu', 'back'
     icon_path: str | None = None
+    submenu_items: list["PieSlice"] = field(default_factory=list)
+
+
+# Beautiful thematic color palettes for the "Preset" mode
+COLOR_PRESETS = {
+    "Mixed Berry": ["#FF1744", "#D500F9", "#2979FF", "#E91E63", "#673AB7", "#3F51B5"],
+    "Vibrant": ["#E91E63", "#9C27B0", "#2196F3", "#00BCD4", "#4CAF50", "#FFC107"],
+    "Pastel": ["#FFB7B2", "#FFDAC1", "#E2F0CB", "#B5EAD7", "#C7CEEA", "#6EB5FF"],
+    "Ocean": ["#00B4D8", "#0077B6", "#023E8A", "#03045E", "#90E0EF", "#CAF0F8"],
+    "Forest": ["#2D6A4F", "#40916C", "#52B788", "#74C69D", "#95D5B2", "#B7E4C7"],
+    "Cyberpunk": ["#F0ED69", "#69F0ED", "#ED69F0", "#F06969", "#69EDF0", "#6972F0"],
+    "Monochrome": ["#212121", "#424242", "#616161", "#757575", "#9E9E9E", "#BDBDBD"],
+    "Fire": ["#D00000", "#FF0000", "#FF4800", "#FF7B00", "#FFB700", "#FFD000"],
+}
 
 
 @dataclass
@@ -215,9 +223,8 @@ class AppSettings:
         overlay_size: Size of the overlay window in pixels
         show_animations: Whether to show animations
         replay_unselected: Whether to replay the original key if no item is selected
-        long_press_delay_ms: Delay in milliseconds before showing the menu
-        log_level: Logging level (DEBUG, INFO, WARNING, ERROR)
-        language: UI language ('auto', 'en', 'ja')
+        long_press_delay_ms: Time in ms to wait before showing menu overlay
+        language: Language code (auto, en, ja)')
         icon_size: Icon size in pixels
         text_size: Font size for menu item labels in points
         auto_scale_with_menu: Whether icon/text sizes scale automatically with menu size
@@ -229,13 +236,20 @@ class AppSettings:
     show_animations: bool = False
     replay_unselected: bool = False
     long_press_delay_ms: int = 0
-    log_level: str = "INFO"
     language: str = "auto"
-    icon_size: int = 48
-    text_size: int = 10
+    icon_size: int = 64
+    text_size: int = 9
     auto_scale_with_menu: bool = True
-    menu_opacity: int = 80
+    menu_opacity: int = 60
     key_sequence_delay_ms: int = 0
+    font_family: str = "Noto Sans JP"
+    enable_text_outline: bool = True
+    dim_background: bool = True
+    dynamic_text_color: bool = False
+    color_mode: str = "preset"  # 'individual', 'unified', 'preset'
+    unified_color: str = "#448AFF"
+    selected_preset: str = "Mixed Berry"
+    custom_presets: dict[str, list[str]] = field(default_factory=dict)
     first_run: bool = True
 
 
@@ -253,6 +267,21 @@ class MenuProfile:
     def __post_init__(self):
         if self.target_apps is None:
             self.target_apps = []
+
+
+def _parse_slice(data: dict) -> PieSlice:
+    """Recursively parse a dictionary into a PieSlice object."""
+    submenu_data = data.get("submenu_items", [])
+    submenus = [_parse_slice(child) for child in submenu_data if isinstance(child, dict)]
+
+    return PieSlice(
+        label=data.get("label", ""),
+        key=data.get("key", ""),
+        color=data.get("color", "#CCCCCC"),
+        action_type=data.get("action_type", "key"),
+        icon_path=data.get("icon_path"),
+        submenu_items=submenus,
+    )
 
 
 # Default configuration
@@ -327,12 +356,12 @@ def load_config() -> tuple[list[MenuProfile], AppSettings]:
                 logger.info(f"Migrating schema version {schema_version} to 3")
                 trigger_key = data.get("trigger_key", DEFAULT_TRIGGER)
                 items_data = data.get("items", [])
-                items = [PieSlice(**i) for i in items_data if isinstance(i, dict)]
+                items = [_parse_slice(i) for i in items_data if isinstance(i, dict)]
                 profiles.append(MenuProfile(name="Default", trigger_key=trigger_key, items=items))
             else:
                 # Load existing profiles
                 for p_data in data.get("profiles", []):
-                    items = [PieSlice(**i) for i in p_data.get("items", [])]
+                    items = [_parse_slice(i) for i in p_data.get("items", [])]
                     profiles.append(
                         MenuProfile(
                             name=p_data.get("name", "Unnamed Profile"),
@@ -384,7 +413,7 @@ def save_config(profiles: list[MenuProfile], settings: AppSettings | None = None
             settings = AppSettings()
 
         data = {
-            "schema_version": 4,  # Upgrade to version 4
+            "schema_version": 5,  # Upgrade to version 5 (Nested Slices)
             "profiles": [
                 {
                     "name": p.name,

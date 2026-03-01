@@ -1,20 +1,7 @@
-import ctypes
 import logging
 import logging.handlers
 import os
 from pathlib import Path
-
-
-def is_admin() -> bool:
-    """Check if the current process has administrative privileges."""
-    try:
-        return bool(ctypes.windll.shell32.IsUserAnAdmin())
-    except (AttributeError, OSError):
-        return False
-
-
-# Project root (base of MixedBerryPie directory)
-PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 # Log storage: Use AppData on Windows to allow writing even when installed in Program Files
 APP_NAME = "MixedBerryPie"
@@ -26,84 +13,55 @@ LOGS_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = LOGS_DIR / "mixedberrypie.log"
 
 # Log level constants
-LOG_LEVEL_DEBUG = logging.DEBUG
-LOG_LEVEL_INFO = logging.INFO
-LOG_LEVEL_WARNING = logging.WARNING
-LOG_LEVEL_ERROR = logging.ERROR
-
-# File rotation settings
-MAX_LOG_SIZE_MB = 1
-BACKUP_COUNT = 3
 
 
-def setup_logger(name: str = "piemenu", level: int = logging.DEBUG) -> logging.Logger:
-    """Setup logger with file rotation and console output.
+def get_logger(name: str) -> logging.Logger:
+    """Get a configured logger with the given name.
+
+    Sets up a logger with both console and file handlers.
+    The file handler uses a rotating file to manage log size.
 
     Args:
-        name: Logger name (default: 'piemenu')
-        level: Logging level (default: logging.INFO)
+        name: Name for the logger (usually __name__)
 
     Returns:
         Configured logger instance
     """
-    # Use the root logger or a named base logger
     logger = logging.getLogger(name)
-    logger.setLevel(level)
 
-    # Prevent duplicate handlers
+    # If logger already has handlers, don't add more (avoid duplicate logs)
     if logger.handlers:
         return logger
 
-    # Format for log messages
+    logger.setLevel(logging.DEBUG)
+
+    # Format
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
     )
 
-    # File handler with rotation (max 5MB, keep 5 backup files)
-    try:
-        file_handler = logging.handlers.RotatingFileHandler(
-            LOG_FILE,
-            maxBytes=MAX_LOG_SIZE_MB * 1024 * 1024,
-            backupCount=BACKUP_COUNT,
-            encoding="utf-8",
-        )
-        file_handler.setLevel(level)
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-    except Exception as e:
-        print(f"Warning: Could not setup file logging: {e}")
-
-    # Console handler for development
+    # Console handler
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.WARNING)  # Only warnings and above to console
     console_handler.setFormatter(formatter)
+    console_handler.setLevel(logging.WARNING)
     logger.addHandler(console_handler)
+
+    # File handler (Rotating)
+    # Max 5MB per file, keep 3 backups
+    file_handler = logging.handlers.RotatingFileHandler(
+        LOG_FILE, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
+    )
+    file_handler.setFormatter(formatter)
+    file_handler.setLevel(logging.DEBUG)
+    logger.addHandler(file_handler)
 
     return logger
 
 
-def get_logger(name: str | None = None) -> logging.Logger:
-    """Get or create logger instance under the 'piemenu' hierarchy.
+def setup_logger() -> None:
+    """Initialize the base 'piemenu' logger with handlers.
 
-    Args:
-        name: Module name (typically __name__). If None, returns root logger.
-
-    Returns:
-        Logger instance with hierarchical naming
+    This ensures that all child loggers (e.g., 'piemenu.app')
+    inherit these settings.
     """
-    if name is None or name == "piemenu":
-        return logging.getLogger("piemenu")
-
-    # Ensure hierarchical naming
-    if not name.startswith("piemenu."):
-        # Handle __name__ which might be 'src.core.config' -> 'piemenu.src.core.config'
-        name = f"piemenu.{name}"
-
-    return logging.getLogger(name)
-
-
-# Initialize the base logger on module import (needed for RotatingFileHandler)
-# The directory creation is intentional: the app requires a writable log directory.
-setup_logger()
-logger = get_logger("core")
-logger.debug("Logger module initialized — Log file: %s", LOG_FILE)
+    get_logger("piemenu")

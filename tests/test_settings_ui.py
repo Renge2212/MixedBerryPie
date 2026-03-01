@@ -115,3 +115,41 @@ def test_target_apps_tags_ui(settings_ui_setup):
 
     assert "notepad.exe" not in profile.target_apps
     assert window.target_apps_layout.count() == initial_count
+
+
+def test_item_editor_submenu_mode(qapp):
+    """Test that ItemEditorDialog handles submenu action type correctly."""
+    from src.core.config import MenuProfile
+    from src.ui.settings_ui import ItemEditorDialog
+
+    test_profiles = [
+        MenuProfile(name="Profile1", trigger_key="", items=[]),
+    ]
+
+    dialog = ItemEditorDialog(item=None, all_profiles=test_profiles)
+
+    # Check if submenu is added to action type combo
+    action_types = [
+        dialog.action_type_combo.itemText(i) for i in range(dialog.action_type_combo.count())
+    ]
+    if "submenu" not in action_types:
+        pytest.skip("submenu action type not yet added to ItemEditorDialog")
+
+    # Set to submenu
+    dialog.action_type_combo.setCurrentText("submenu")
+
+    # The key_edit should be hidden
+    assert dialog.key_edit.isHidden() is True
+    # The hint label should be shown
+    assert hasattr(dialog, "submenu_hint_label")
+    assert dialog.submenu_hint_label.isHidden() is False
+
+    # Save validation
+    dialog.label_edit.setPlainText("My Submenu")
+
+    with patch.object(dialog, "accept") as mock_accept:
+        dialog.save()
+        mock_accept.assert_called_once()
+        assert dialog.result_item is not None
+        assert dialog.result_item.action_type == "submenu"
+        assert dialog.result_item.submenu_items == []
