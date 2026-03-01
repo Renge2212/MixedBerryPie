@@ -209,7 +209,7 @@ class PieSlice:
 
 # Beautiful thematic color palettes for the "Preset" mode
 COLOR_PRESETS = {
-    "Mixed Berry": ["#FF5252", "#448AFF", "#69F0AE", "#FFD740", "#40C4FF", "#B0BEC5"],
+    "Mixed Berry": ["#FF1744", "#D500F9", "#2979FF", "#E91E63", "#673AB7", "#3F51B5"],
     "Vibrant": ["#E91E63", "#9C27B0", "#2196F3", "#00BCD4", "#4CAF50", "#FFC107"],
     "Pastel": ["#FFB7B2", "#FFDAC1", "#E2F0CB", "#B5EAD7", "#C7CEEA", "#6EB5FF"],
     "Ocean": ["#00B4D8", "#0077B6", "#023E8A", "#03045E", "#90E0EF", "#CAF0F8"],
