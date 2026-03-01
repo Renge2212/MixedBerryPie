@@ -77,7 +77,6 @@ class MixedBerryPieApp(QObject):
         self.long_press_timer = QTimer(self)
         self.long_press_timer.setSingleShot(True)
         self.pending_profile: MenuProfile | None = None
-        self._current_profile: MenuProfile | None = None
 
         self.setup_tray()
         self.setup_signals()
@@ -299,7 +298,6 @@ class MixedBerryPieApp(QObject):
         """Actually show the overlay using a profile or direct list of items."""
         if isinstance(payload, MenuProfile):
             app_logger.info(f"App: _do_show_overlay called for profile: {payload.name}")
-            self._current_profile = payload
             self.overlay.menu_items = payload.items
         else:
             # Assumed to be list[PieSlice] for submenus

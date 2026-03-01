@@ -100,7 +100,6 @@ class PieOverlay(QWidget):
         self._slice_paths_cache: list[QPainterPath] = []
         self._highlight_paths_cache: list[QPainterPath] = []
         self._item_font: QFont | None = None
-        self._micro_font: QFont | None = None
 
         # Initialize the widget to cover the primary screen and show it.
         # Its visibility will be controlled by the `is_visible` flag.
@@ -128,8 +127,7 @@ class PieOverlay(QWidget):
             subs = getattr(item, "submenu_items", None)
             if subs:
                 d = self._get_max_depth(subs, current_depth + 1)
-                if max_d < d:
-                    max_d = d
+                max_d = max(max_d, d)
         return max_d
 
     def _update_dimensions(self) -> None:
@@ -605,8 +603,7 @@ class PieOverlay(QWidget):
 
         # If the gap is so large it consumes the whole slice, clamp it so the slice is at least 1 degree wide
         max_reduction = (angle_span - 1.0) / 2.0
-        if max_reduction < 0:
-            max_reduction = 0
+        max_reduction = max(max_reduction, 0)
 
         angle_reduce_outer = min(angle_reduce_outer, max_reduction)
         angle_reduce_inner = min(angle_reduce_inner, max_reduction)
@@ -712,10 +709,9 @@ class PieOverlay(QWidget):
                     self._icon_cache[cache_key] = pixmap
                 else:
                     self._icon_cache[cache_key] = QPixmap()
-        else:
-            if cache_key not in self._icon_cache:
-                pixmap = QIcon(resolved_path).pixmap(int(icon_size), int(icon_size))
-                self._icon_cache[cache_key] = pixmap
+        elif cache_key not in self._icon_cache:
+            pixmap = QIcon(resolved_path).pixmap(int(icon_size), int(icon_size))
+            self._icon_cache[cache_key] = pixmap
 
         pixmap = self._icon_cache[cache_key]
         if not pixmap.isNull():

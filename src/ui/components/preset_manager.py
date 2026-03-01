@@ -75,7 +75,7 @@ class PresetEditorDialog(QDialog):
             btn.setStyleSheet(
                 f"background-color: {color}; border: 1px solid #888; border-radius: 4px;"
             )
-            btn.clicked.connect(lambda checked, idx=i: self.edit_color(idx))
+            btn.clicked.connect(lambda _, idx=i: self.edit_color(idx))
 
             # Tooltip for help
             btn.setToolTip(self.tr("Click to edit, Right-click to remove"))

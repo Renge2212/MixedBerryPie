@@ -492,7 +492,7 @@ class AppPickerDialog(QDialog):
         self.table.setRootIsDecorated(False)
         self.table.setIndentation(0)
         self.table.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # Remove focus rectangle
-        self.table.itemDoubleClicked.connect(lambda item, col: self.accept())
+        self.table.itemDoubleClicked.connect(lambda *_: self.accept())
         layout.addWidget(self.table)
 
         btn_layout = QHBoxLayout()

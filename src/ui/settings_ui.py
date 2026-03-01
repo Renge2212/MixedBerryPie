@@ -636,10 +636,9 @@ class SettingsWindow(QWidget):
             if self.on_suspend_hooks:
                 logger.info("Suspending hooks for recording")
                 self.on_suspend_hooks()
-        else:
-            if self.on_resume_hooks:
-                logger.info("Resuming hooks after recording")
-                self.on_resume_hooks()
+        elif self.on_resume_hooks:
+            logger.info("Resuming hooks after recording")
+            self.on_resume_hooks()
 
     def rename_profile(self, item):
         idx = self.profile_list.row(item)
@@ -663,7 +662,7 @@ class SettingsWindow(QWidget):
             item.setText(new_name)
             logger.info(f"Profile renamed: {old_name} -> {new_name}")
 
-    def set_dirty(self, *args, **kwargs):
+    def set_dirty(self, *args, **_kwargs):
         if getattr(self, "_is_loading", False):
             return
         self.is_dirty = True

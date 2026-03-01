@@ -16,9 +16,6 @@ from src.core.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Project root resolution
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 # Config Path Resolution (AppData)
 APP_NAME = "MixedBerryPie"
 APPDATA = os.getenv("LOCALAPPDATA", os.path.expanduser("~"))
@@ -27,9 +24,6 @@ CONFIG_FILE = os.path.join(CONFIG_DIR, "menu_config.json")
 ICON_HISTORY_FILE = os.path.join(CONFIG_DIR, "icon_history.json")
 USER_ICONS_DIR = os.path.join(CONFIG_DIR, "user_icons")
 ICON_HISTORY_MAX = 100
-
-# Legacy Config Path (for migration)
-LEGACY_CONFIG_FILE = os.path.join(PROJECT_ROOT, "menu_config.json")
 
 
 def _ensure_config_dir() -> None:
@@ -229,9 +223,8 @@ class AppSettings:
         overlay_size: Size of the overlay window in pixels
         show_animations: Whether to show animations
         replay_unselected: Whether to replay the original key if no item is selected
-        long_press_delay_ms: Delay in milliseconds before showing the menu
-        log_level: Logging level (DEBUG, INFO, WARNING, ERROR)
-        language: UI language ('auto', 'en', 'ja')
+        long_press_delay_ms: Time in ms to wait before showing menu overlay
+        language: Language code (auto, en, ja)')
         icon_size: Icon size in pixels
         text_size: Font size for menu item labels in points
         auto_scale_with_menu: Whether icon/text sizes scale automatically with menu size
@@ -243,7 +236,6 @@ class AppSettings:
     show_animations: bool = False
     replay_unselected: bool = False
     long_press_delay_ms: int = 0
-    log_level: str = "INFO"
     language: str = "auto"
     icon_size: int = 64
     text_size: int = 9
