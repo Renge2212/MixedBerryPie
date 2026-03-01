@@ -39,6 +39,12 @@ jobs:
       - name: Mypy – type check
         run: uv run mypy .
 
+      - name: Vulture – dead code check
+        run: uv run vulture .
+
+      - name: Xenon – complexity check
+        run: uv run xenon .
+
   test:
     name: Tests
     runs-on: windows-latest

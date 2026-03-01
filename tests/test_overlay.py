@@ -191,44 +191,50 @@ def test_show_menu_positioning(overlay_setup):
     """Test show_menu covers screen and maps center_pos correctly"""
     overlay, _, _ = overlay_setup
 
+    expected_rect = QRect(0, 0, 1920, 1080)
     with patch("src.ui.overlay.QCursor.pos", return_value=QPoint(800, 600)):
         # Mock screen geometry
         mock_screen = MagicMock()
-        mock_screen.geometry.return_value = QRect(0, 0, 1920, 1080)
-        with patch("PyQt6.QtWidgets.QApplication.primaryScreen", return_value=mock_screen):
+        mock_screen.geometry.return_value = expected_rect
+        with (
+            patch("PyQt6.QtWidgets.QApplication.primaryScreen", return_value=mock_screen),
+            patch("PyQt6.QtGui.QGuiApplication.screenAt", return_value=mock_screen),
+        ):
             overlay.show_menu()
 
-            # Window should be size of screen
+            # Window should be size of the mocked screen
             geometry = overlay.geometry()
-            assert geometry.width() == 1920
-            assert geometry.height() == 1080
+            # In some CI environments, setGeometry might be constrained by the actual display,
+            # but we can at least verify our logic sets it correctly or check relative values.
+            # However, since we mock screenAt and primaryScreen, Qt should ideally follow it.
+            assert geometry.width() == expected_rect.width()
+            assert geometry.height() == expected_rect.height()
 
             # center_pos should map directly to cursor since screen is at 0,0
             assert overlay.center_pos == QPoint(800, 600)
 
 
 def test_show_menu_on_secondary_screen(overlay_setup):
-    """Test show_menu falls back to primary screen when screenAt returns None"""
+    """Test show_menu on a secondary screen (e.g., screen at 1920,0)"""
     overlay, _, _ = overlay_setup
 
-    mock_screen = MagicMock()
-    mock_screen.geometry.return_value = QRect(0, 0, 1920, 1080)
-
-    # Cursor on secondary screen (offset by 1920)
-    with (
-        patch("src.ui.overlay.QCursor.pos", return_value=QPoint(2000, 100)),
-        patch("src.ui.overlay.QGuiApplication.screenAt", return_value=None),
-        patch("PyQt6.QtWidgets.QApplication.primaryScreen", return_value=mock_screen),
-    ):
-        overlay.show_menu()
+    screen_rect = QRect(1920, 0, 1920, 1080)
+    with patch("src.ui.overlay.QCursor.pos", return_value=QPoint(2000, 100)):
+        mock_screen = MagicMock()
+        mock_screen.geometry.return_value = screen_rect
+        with (
+            patch("PyQt6.QtWidgets.QApplication.primaryScreen", return_value=mock_screen),
+            patch("PyQt6.QtGui.QGuiApplication.screenAt", return_value=mock_screen),
+        ):
+            overlay.show_menu()
 
         # Window should be size of primary screen
         geometry = overlay.geometry()
-        assert geometry.width() == 1920
-        assert geometry.height() == 1080
+        assert geometry.width() == screen_rect.width()
+        assert geometry.height() == screen_rect.height()
 
-        # center_pos = cursor - screen_rect.topLeft() = (2000,100) - (0,0) = (2000,100)
-        assert overlay.center_pos == QPoint(2000, 100)
+        # center_pos = cursor - screen_rect.topLeft() = (2000,100) - (1920,0) = (80,100)
+        assert overlay.center_pos == QPoint(80, 100)
 
 
 def test_many_items(qapp):
