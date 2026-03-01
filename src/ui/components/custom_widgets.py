@@ -265,6 +265,8 @@ class SteppedSlider(QWidget):
 
         self.slider = QSlider(Qt.Orientation.Horizontal)
         self.slider.setRange(0, len(steps) - 1)
+        self.slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.slider.setTickInterval(1)
         self.slider.valueChanged.connect(self._on_slider_changed)
 
         self.value_label = QLabel()
