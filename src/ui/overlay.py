@@ -470,10 +470,20 @@ class PieOverlay(QWidget):
         if num_items == 0:
             return
 
-        # Draw layers based on active path
-        self._draw_layer(painter, 0, self.menu_items, self.active_path)
+        # Draw layers in two passes to ensure text (content) is always on top of backgrounds
+        # Pass 1: Backgrounds
+        self._draw_layer(painter, 0, self.menu_items, self.active_path, phase="background")
+        # Pass 2: Content (Icons and Text)
+        self._draw_layer(painter, 0, self.menu_items, self.active_path, phase="content")
 
-    def _draw_layer(self, painter: QPainter, depth: int, items: list[PieSlice], path: list[int]):
+    def _draw_layer(
+        self,
+        painter: QPainter,
+        depth: int,
+        items: list[PieSlice],
+        path: list[int],
+        phase: str = "both",
+    ):
         """Recursively draw a layer of the pie menu."""
         if not items:
             return
@@ -529,32 +539,34 @@ class PieOverlay(QWidget):
             base_color.setAlpha(int(255 * opacity_percent / 100))
 
             # 2. Slice Fill
-            if is_selected:
-                # Selected: Brighter fill
-                fill_color = QColor(effective_color_str).lighter(130)
-                fill_color.setAlpha(int(255 * opacity_percent / 100))
-                painter.fillPath(path_obj, QBrush(fill_color))
+            if phase in ("both", "background"):
+                if is_selected:
+                    # Selected: Brighter fill
+                    fill_color = QColor(effective_color_str).lighter(130)
+                    fill_color.setAlpha(int(255 * opacity_percent / 100))
+                    painter.fillPath(path_obj, QBrush(fill_color))
 
-                # Glow/Border outline in the item's color
-                glow_color = QColor(effective_color_str)
-                glow_color.setAlpha(200)
-                glow_pen = QPen(glow_color, 3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
-                glow_pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-                painter.strokePath(path_obj, glow_pen)
-            else:
-                # Unselected: Original item color
-                painter.fillPath(path_obj, QBrush(base_color))
+                    # Glow/Border outline in the item's color
+                    glow_color = QColor(effective_color_str)
+                    glow_color.setAlpha(200)
+                    glow_pen = QPen(glow_color, 3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+                    glow_pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+                    painter.strokePath(path_obj, glow_pen)
+                else:
+                    # Unselected: Original item color
+                    painter.fillPath(path_obj, QBrush(base_color))
 
-            # Draw Label and Icon
-            self._draw_item_content(
-                painter, item, i, num_items, start_angle + angle_span / 2, rad_inner, rad_outer
-            )
+            # 3. Draw Label and Icon
+            if phase in ("both", "content"):
+                self._draw_item_content(
+                    painter, item, i, num_items, start_angle + angle_span / 2, rad_inner, rad_outer
+                )
 
         # Recursively draw the next layer if an item is selected and has submenus
         if selected_idx != -1 and selected_idx < num_items:
             selected_item = items[selected_idx]
             if getattr(selected_item, "submenu_items", None):
-                self._draw_layer(painter, depth + 1, selected_item.submenu_items, path)
+                self._draw_layer(painter, depth + 1, selected_item.submenu_items, path, phase)
 
     def _create_slice_path(
         self,
