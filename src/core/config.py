@@ -245,16 +245,16 @@ class AppSettings:
     long_press_delay_ms: int = 0
     log_level: str = "INFO"
     language: str = "auto"
-    icon_size: int = 48
-    text_size: int = 10
+    icon_size: int = 64
+    text_size: int = 9
     auto_scale_with_menu: bool = True
-    menu_opacity: int = 80
+    menu_opacity: int = 60
     key_sequence_delay_ms: int = 0
-    font_family: str = "Segoe UI Variable Display"
+    font_family: str = "Noto Sans JP"
     enable_text_outline: bool = True
-    dim_background: bool = False
+    dim_background: bool = True
     dynamic_text_color: bool = False
-    color_mode: str = "individual"  # 'individual', 'unified', 'preset'
+    color_mode: str = "preset"  # 'individual', 'unified', 'preset'
     unified_color: str = "#448AFF"
     selected_preset: str = "Mixed Berry"
     custom_presets: dict[str, list[str]] = field(default_factory=dict)
