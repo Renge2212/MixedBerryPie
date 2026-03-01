@@ -4,6 +4,7 @@ from typing import Any
 
 from PyQt6.QtCore import (
     QEvent,
+    QMimeData,
     QPoint,
     QRect,
     QRectF,
@@ -14,6 +15,7 @@ from PyQt6.QtCore import (
 from PyQt6.QtGui import (
     QBrush,
     QColor,
+    QDrag,
     QKeyEvent,
     QKeySequence,
     QPainter,
@@ -23,6 +25,7 @@ from PyQt6.QtGui import (
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QDialog,
     QFrame,
     QHBoxLayout,
@@ -549,6 +552,7 @@ class PieItemWidget(QFrame):
     clicked = pyqtSignal(object)
     double_clicked = pyqtSignal(object)
     enter_submenu = pyqtSignal(object)
+    item_dropped = pyqtSignal(object, object, str)  # source, target, action
 
     def __init__(self, item: PieSlice, parent=None, color_mode="individual"):
         super().__init__(parent)
@@ -557,6 +561,9 @@ class PieItemWidget(QFrame):
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFixedHeight(64)
+        self.setAcceptDrops(False)
+        self._drag_start_pos: QPoint | None = None
+        self._is_dragging_me = False
 
         layout = QHBoxLayout()
         layout.setContentsMargins(12, 6, 12, 6)
@@ -609,7 +616,13 @@ class PieItemWidget(QFrame):
     def _update_style(self):
         with contextlib.suppress(RuntimeError):
             dark = is_dark_mode()
-            if self.selected:
+            if self._is_dragging_me:
+                # Use semi-transparent colors during drag to indicate "lifting"
+                bg_color = "rgba(45, 45, 45, 0.4)" if dark else "rgba(200, 200, 200, 0.6)"
+                border_color = "rgba(0, 120, 212, 0.5)"
+                text_color = "#999"
+                action_color = "#aaa"
+            elif self.selected:
                 bg_color = "rgba(0, 120, 212, 0.8)"
                 border_color = "#0078d4"
                 text_color = "white"
@@ -670,13 +683,40 @@ class PieItemWidget(QFrame):
         with contextlib.suppress(RuntimeError):
             self._update_style()
 
-    def mousePressEvent(self, event: Any) -> None:
-        self.clicked.emit(self)
-        super().mousePressEvent(event)
-
     def mouseDoubleClickEvent(self, event: Any) -> None:
         self.double_clicked.emit(self)
         super().mouseDoubleClickEvent(event)
+
+    def mousePressEvent(self, event: Any) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._drag_start_pos = event.pos()
+        self.clicked.emit(self)
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: Any) -> None:
+        if not (event.buttons() & Qt.MouseButton.LeftButton) or not self._drag_start_pos:
+            return
+        if (
+            event.pos() - self._drag_start_pos
+        ).manhattanLength() < QApplication.startDragDistance():
+            return
+
+        drag = QDrag(self)
+        mime = QMimeData()
+        mime.setText("pie_item_drag")
+        drag.setMimeData(mime)
+
+        pixmap = self.grab()
+        drag.setPixmap(pixmap)
+        drag.setHotSpot(event.position().toPoint())
+
+        self._is_dragging_me = True
+        self.hide()
+        self._update_style()
+        drag.exec(Qt.DropAction.MoveAction)
+        self._is_dragging_me = False
+        self.show()
+        self._update_style()
 
     def _on_enter_clicked(self):
         self.enter_submenu.emit(self)
@@ -730,3 +770,24 @@ class ColorStripWidget(QWidget):
                 painter.fillRect(int(i * w), 0, int(w / 2 + 1), int(h), color)
             else:
                 painter.fillRect(rect, color)
+
+
+class PlaceholderWidget(QFrame):
+    """A drop indicator line used to show where a dragged item will land."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(4)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        rect = self.rect().adjusted(16, 0, -16, 0)
+
+        color = QColor("#0078d4")
+        painter.setBrush(color)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawRoundedRect(rect, 2, 2)

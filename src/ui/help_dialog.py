@@ -135,6 +135,49 @@ class HelpDialog(QDialog):
         t_tips = self.tr("Tips & Tricks")
         t_trouble = self.tr("Troubleshooting")
 
+        # Translations for HTML content
+        t_usage_1 = self.tr("Press and hold your trigger key.")
+        t_usage_2 = self.tr("Move mouse towards the item you want to select.")
+        t_usage_3 = self.tr("Release the key to execute the action.")
+        t_usage_hint = self.tr(
+            "If you release without moving, the original key might be replayed (see settings)."
+        )
+
+        t_profiles_desc = self.tr(
+            "You can define multiple profiles with different trigger keys and target applications."
+        )
+
+        t_label = self.tr("Label")
+        t_action = self.tr("Action")
+        t_color = self.tr("Color")
+
+        t_icons_title = self.tr("Icons & Customization")
+        t_icons_presets = self.tr("Presets")
+        t_icons_presets_desc = self.tr("Choose from 1000+ curated icons sorted by categories.")
+        t_icons_history = self.tr("History")
+        t_icons_history_desc = self.tr(
+            "Recently used external images are saved in the 'Recent' category."
+        )
+        t_icons_grid = self.tr("Dark Grid")
+        t_icons_grid_desc = self.tr(
+            "The icon picker uses a dark background so white icons are always visible."
+        )
+
+        t_set_delay = self.tr("Action Delay")
+        t_set_opacity = self.tr("Menu Opacity")
+        t_set_auto = self.tr("Auto Scale")
+
+        t_tips_1 = self.tr("Right-click the system tray icon to access settings.")
+        t_tips_2 = self.tr("You can export/import settings as JSON files for backup.")
+        t_tips_3 = self.tr(
+            "Use 'Target Apps' to limit a profile to specific software (e.g., Photoshop only)."
+        )
+
+        t_trouble_1 = self.tr(
+            "If shortcuts don't trigger, check if another app is using the same hotkey."
+        )
+        t_trouble_2 = self.tr("Try increasing 'Key Input Interval' if some apps miss keystrokes.")
+
         html = f"""
         <html>
         <head>
@@ -196,14 +239,14 @@ class HelpDialog(QDialog):
         <body>
             <h2>📖 {t_usage}</h2>
             <ol>
-                <li>{self.tr("Press and hold your trigger key.")}</li>
-                <li>{self.tr("Move mouse towards the item you want to select.")}</li>
-                <li>{self.tr("Release the key to execute the action.")}</li>
+                <li>{t_usage_1}</li>
+                <li>{t_usage_2}</li>
+                <li>{t_usage_3}</li>
             </ol>
-            <p class="hint">※ {self.tr("If you release without moving, the original key might be replayed (see settings).")}</p>
+            <p class="hint">※ {t_usage_hint}</p>
 
             <h2>🗂️ {t_profiles}</h2>
-            <p>{self.tr("You can define multiple profiles with different trigger keys and target applications.")}</p>
+            <p>{t_profiles_desc}</p>
             <ul>
                 {profiles_html}
             </ul>
@@ -211,38 +254,38 @@ class HelpDialog(QDialog):
             <h2>⌨️ {t_shortcuts}</h2>
             <table>
                 <tr>
-                    <th>{self.tr("Label")}</th>
-                    <th>{self.tr("Action")}</th>
-                    <th>{self.tr("Color")}</th>
+                    <th>{t_label}</th>
+                    <th>{t_action}</th>
+                    <th>{t_color}</th>
                 </tr>
                 {shortcuts_html}
             </table>
 
-            <h2>✨ {self.tr("Icons & Customization")}</h2>
+            <h2>✨ {t_icons_title}</h2>
             <ul>
-                <li><b>{self.tr("Presets")}:</b> {self.tr("Choose from 1000+ curated icons sorted by categories.")}</li>
-                <li><b>{self.tr("History")}:</b> {self.tr("Recently used external images are saved in the 'Recent' category.")}</li>
-                <li><b>{self.tr("Dark Grid")}:</b> {self.tr("The icon picker uses a dark background so white icons are always visible.")}</li>
+                <li><b>{t_icons_presets}:</b> {t_icons_presets_desc}</li>
+                <li><b>{t_icons_history}:</b> {t_icons_history_desc}</li>
+                <li><b>{t_icons_grid}:</b> {t_icons_grid_desc}</li>
             </ul>
 
             <h2>⚙️ {t_settings}</h2>
             <ul>
-                <li><b>{self.tr("Action Delay")}:</b> {settings.action_delay_ms}ms</li>
-                <li><b>{self.tr("Menu Opacity")}:</b> {settings.menu_opacity}%</li>
-                <li><b>{self.tr("Auto Scale")}:</b> {"Yes" if settings.auto_scale_with_menu else "No"}</li>
+                <li><b>{t_set_delay}:</b> {settings.action_delay_ms}ms</li>
+                <li><b>{t_set_opacity}:</b> {settings.menu_opacity}%</li>
+                <li><b>{t_set_auto}:</b> {"Yes" if settings.auto_scale_with_menu else "No"}</li>
             </ul>
 
             <h2>💡 {t_tips}</h2>
             <ul>
-                <li>{self.tr("Right-click the system tray icon to access settings.")}</li>
-                <li>{self.tr("You can export/import settings as JSON files for backup.")}</li>
-                <li>{self.tr("Use 'Target Apps' to limit a profile to specific software (e.g., Photoshop only).")}</li>
+                <li>{t_tips_1}</li>
+                <li>{t_tips_2}</li>
+                <li>{t_tips_3}</li>
             </ul>
 
             <h2>🔧 {t_trouble}</h2>
             <ul>
-                <li>{self.tr("If shortcuts don't trigger, check if another app is using the same hotkey.")}</li>
-                <li>{self.tr("Try increasing 'Key Input Interval' if some apps miss keystrokes.")}</li>
+                <li>{t_trouble_1}</li>
+                <li>{t_trouble_2}</li>
             </ul>
         </body>
         </html>

@@ -22,7 +22,7 @@ class PiePreviewWidget(QWidget):
         self.unified_color = "#448AFF"
         self.selected_preset = "Mixed Berry"
         self.current_palette: list[str] = []
-        self.setMinimumSize(220, 220)
+        self.setMinimumSize(350, 350)
 
         # Legacy fixed radii (used only when depth==0 and preview is tiny)
         self.radius_inner = 25
@@ -193,7 +193,8 @@ class PiePreviewWidget(QWidget):
             painter.drawPath(path)
 
             # Label
-            font = QFont("Segoe UI", 7, QFont.Weight.Bold)
+            font_size = max(7, int(cx / 16))
+            font = QFont("Segoe UI", font_size, QFont.Weight.Bold)
             painter.setFont(font)
             mid_angle_deg = start + angle_span / 2
             mid_rad = math.radians(mid_angle_deg)

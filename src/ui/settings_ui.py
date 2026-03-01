@@ -3,6 +3,7 @@ from typing import Any
 
 from PyQt6.QtCore import (
     QEvent,
+    QPoint,
     Qt,
     QTimer,
 )
@@ -76,7 +77,8 @@ class SettingsWindow(QWidget):
         self.is_dirty = False
         self.settings = config.AppSettings()
         # self.setWindowTitle set in retranslateUi
-        self.resize(900, 750)  # Increased size for better visibility of list and tab contents
+        self.setMinimumSize(900, 600)
+        self.resize(1250, 750)  # Increased size for better visibility of list and tab contents
 
         icon_path = get_resource_path(os.path.join("resources", "app_icon.ico"))
         self.setWindowIcon(QIcon(icon_path))
@@ -86,6 +88,7 @@ class SettingsWindow(QWidget):
         self._nav_stack: list[PieSlice] = []  # Stack of submenus currently navigated into
         self.item_widgets: list[PieItemWidget] = []
         self.selected_item_widget: PieItemWidget | None = None  # Renamed from selected_widget
+        self._item_clipboard: dict | None = None  # For copy/paste
 
         main_layout = QHBoxLayout()  # Changed to QHBoxLayout for sidebar
         self.setLayout(main_layout)
@@ -101,9 +104,12 @@ class SettingsWindow(QWidget):
         plist_btns = QHBoxLayout()
         self.btn_add_p = QPushButton("Add")
         self.btn_add_p.clicked.connect(lambda: (self.add_profile(), self.set_dirty()))
+        self.btn_dup_p = QPushButton("Duplicate")
+        self.btn_dup_p.clicked.connect(lambda: (self.duplicate_profile(), self.set_dirty()))
         self.btn_del_p = QPushButton("Delete")
         self.btn_del_p.clicked.connect(lambda: (self.delete_profile(), self.set_dirty()))
         plist_btns.addWidget(self.btn_add_p)
+        plist_btns.addWidget(self.btn_dup_p)
         plist_btns.addWidget(self.btn_del_p)
         sidebar.addLayout(plist_btns)
         main_layout.addLayout(sidebar, 1)  # Give sidebar 1/4 of width
@@ -173,7 +179,12 @@ class SettingsWindow(QWidget):
         self.btn_nav_up = QPushButton("⬆ Back")
         self.btn_nav_up.clicked.connect(self.navigate_up)
         self.btn_nav_up.setVisible(False)
+        self.btn_nav_up.setAcceptDrops(True)
+        self.btn_nav_up.installEventFilter(self)
+
         self.lbl_breadcrumb = QLabel("Root:")
+        self.lbl_breadcrumb.setAcceptDrops(True)
+        self.lbl_breadcrumb.installEventFilter(self)
         self.lbl_breadcrumb.setStyleSheet("font-weight: bold; color: #888;")
         self.breadcrumb_layout.addWidget(self.btn_nav_up)
         self.breadcrumb_layout.addWidget(self.lbl_breadcrumb)
@@ -192,7 +203,15 @@ class SettingsWindow(QWidget):
         self.items_layout.setContentsMargins(5, 5, 5, 5)
         self.items_layout.addStretch()
         self.scroll_content.setLayout(self.items_layout)
+        self.scroll_content.setAcceptDrops(True)
+        self.scroll_content.installEventFilter(self)
         self.scroll_area.setWidget(self.scroll_content)
+
+        # Placeholder for Drag-and-Drop
+        from .components.custom_widgets import PlaceholderWidget
+
+        self.drag_placeholder = PlaceholderWidget()
+        self.drag_placeholder.hide()
 
         group_items_layout.addWidget(self.scroll_area)
 
@@ -204,6 +223,11 @@ class SettingsWindow(QWidget):
         self.btn_edit_i.clicked.connect(self.edit_item)
         self.btn_del_i = QPushButton("Remove")
         self.btn_del_i.clicked.connect(self.remove_item)
+        self.btn_dup_i = QPushButton("Duplicate")
+        self.btn_dup_i.clicked.connect(self.duplicate_item)
+        self.btn_move_out = QPushButton("Move Out")
+        self.btn_move_out.clicked.connect(self.move_item_out_selected)
+        self.btn_move_out.setVisible(False)
 
         btn_reorder = QHBoxLayout()
         self.btn_up = QPushButton("↑")
@@ -218,6 +242,8 @@ class SettingsWindow(QWidget):
         item_btns.addWidget(self.btn_add_i)
         item_btns.addWidget(self.btn_edit_i)
         item_btns.addWidget(self.btn_del_i)
+        item_btns.addWidget(self.btn_dup_i)
+        item_btns.addWidget(self.btn_move_out)
         item_btns.addStretch()
         item_btns.addLayout(btn_reorder)
         group_items_layout.addLayout(item_btns)
@@ -226,7 +252,7 @@ class SettingsWindow(QWidget):
 
         # Multi-column layout for items and preview
         items_h_layout = QHBoxLayout()
-        items_h_layout.addWidget(self.group_items, 3)
+        items_h_layout.addWidget(self.group_items, 1)
 
         # Preview Section
         self.preview_group = QGroupBox("Live Preview")
@@ -235,10 +261,10 @@ class SettingsWindow(QWidget):
         self.preview_widget.update_unified_color(
             self.settings.color_mode, self.settings.unified_color, self.settings.selected_preset
         )
-        preview_layout.addWidget(self.preview_widget, 0, Qt.AlignmentFlag.AlignCenter)
-        preview_layout.addStretch()
+        # Allow the preview widget to expand and fill the available space
+        preview_layout.addWidget(self.preview_widget, 1)
         self.preview_group.setLayout(preview_layout)
-        items_h_layout.addWidget(self.preview_group, 2)
+        items_h_layout.addWidget(self.preview_group, 1)
 
         menu_layout.addLayout(items_h_layout)
 
@@ -503,6 +529,8 @@ class SettingsWindow(QWidget):
             self.btn_add_i,
             self.btn_edit_i,
             self.btn_del_i,
+            self.btn_dup_i,
+            self.btn_move_out,
             self.btn_up,
             self.btn_down,
         ]
@@ -524,6 +552,7 @@ class SettingsWindow(QWidget):
         # Sidebar
         self.lbl_profiles.setText(self.tr("Menu Profiles"))
         self.btn_add_p.setText(self.tr("Add"))
+        self.btn_dup_p.setText(self.tr("Duplicate"))
         self.btn_del_p.setText(self.tr("Delete"))
         self.btn_del_p.setToolTip(self.tr("Delete Profile"))
 
@@ -544,6 +573,9 @@ class SettingsWindow(QWidget):
         self.btn_add_i.setText(self.tr("Add Item"))
         self.btn_edit_i.setText(self.tr("Edit"))
         self.btn_del_i.setText(self.tr("Remove"))
+        self.btn_dup_i.setText(self.tr("Duplicate"))
+        self.btn_move_out.setText(self.tr("Move Out"))
+        self.btn_move_out.setToolTip(self.tr("Move selected item to parent menu"))
         self.btn_up.setToolTip(self.tr("Move Up"))
         self.btn_down.setToolTip(self.tr("Move Down"))
 
@@ -867,6 +899,7 @@ class SettingsWindow(QWidget):
         """Update breadcrumb label and back button visibility."""
         if not self._nav_stack:
             self.btn_nav_up.setVisible(False)
+            self.btn_move_out.setVisible(False)
             if self.current_profile_idx != -1:
                 pname = self.profiles[self.current_profile_idx].name
                 self.lbl_breadcrumb.setText(f"Root ({pname})")
@@ -874,6 +907,7 @@ class SettingsWindow(QWidget):
                 self.lbl_breadcrumb.setText("Root")
         else:
             self.btn_nav_up.setVisible(True)
+            self.btn_move_out.setVisible(True)
             path_names = [s.label for s in self._nav_stack]
             self.lbl_breadcrumb.setText("Root > " + " > ".join(path_names))
 
@@ -895,16 +929,21 @@ class SettingsWindow(QWidget):
         """Update the UI list of pie items based on current context."""
         items = override_items if override_items is not None else self.current_items()
 
-        # Clear existing
-        for w in self.item_widgets:
-            try:
-                w.hide()
-                self.items_layout.removeWidget(w)
-                w.deleteLater()
-            except RuntimeError:
-                pass
+        # Clear existing layout completely to prevent stretch/placeholder issues
+        while self.items_layout.count():
+            layout_item = self.items_layout.takeAt(0)
+            if layout_item is not None:
+                w_opt = layout_item.widget()
+                if w_opt is not None:
+                    if w_opt == self.drag_placeholder:
+                        w_opt.setParent(None)  # Remove from layout but keep instance
+                    else:
+                        w_opt.hide()
+                        w_opt.deleteLater()
+
         self.item_widgets.clear()
         self.selected_item_widget = None
+        self.drag_placeholder.hide()
 
         # Re-add items
         color_mode = (
@@ -917,9 +956,12 @@ class SettingsWindow(QWidget):
             w.clicked.connect(self.on_item_clicked)
             w.double_clicked.connect(self.edit_item)
             w.enter_submenu.connect(self.enter_submenu)
+            w.item_dropped.connect(self.on_item_drag_dropped)
             self.item_widgets.append(w)
-            # Insert before the stretch (which is at index count()-1)
-            self.items_layout.insertWidget(self.items_layout.count() - 1, w)
+            self.items_layout.addWidget(w)
+
+        # Add the stretch back at the very bottom
+        self.items_layout.addStretch()
 
         # Sync preview with submenu context
         if hasattr(self, "preview_widget"):
@@ -1035,6 +1077,34 @@ class SettingsWindow(QWidget):
             self.profile_list.addItem(name)
             self.profile_list.setCurrentRow(len(self.profiles) - 1)
 
+    def duplicate_profile(self):
+        """Create a copy of the currently selected profile."""
+        idx = self.profile_list.currentRow()
+        if idx == -1:
+            return
+
+        old_p = self.profiles[idx]
+
+        # Serialized deep copy to avoid shared references
+        from dataclasses import asdict
+
+        from src.core.config import MenuProfile, _parse_slice
+
+        new_items = [_parse_slice(asdict(item)) for item in old_p.items]
+        new_target_apps = list(old_p.target_apps) if old_p.target_apps else []
+
+        new_p = MenuProfile(
+            name=f"{old_p.name} (Copy)",
+            trigger_key="",
+            items=new_items,
+            target_apps=new_target_apps,
+        )
+
+        self.profiles.append(new_p)
+        self.profile_list.addItem(new_p.name)
+        self.profile_list.setCurrentRow(len(self.profiles) - 1)
+        logger.info(f"Profile duplicated: {old_p.name} -> {new_p.name}")
+
     def delete_profile(self):
         if len(self.profiles) <= 1:
             QMessageBox.warning(
@@ -1141,6 +1211,41 @@ class SettingsWindow(QWidget):
             # Refresh list anyway if we can't find the widget but one was 'selected'
             self.update_item_list()
 
+    def duplicate_item(self):
+        """Duplicate the selected item and insert it directly below."""
+        if not self.selected_item_widget:
+            return
+
+        from dataclasses import asdict
+
+        from src.core.config import _parse_slice
+
+        # Deep copy via asdict and parse
+        item = self.selected_item_widget.item
+        item_dict = asdict(item)
+        new_item = _parse_slice(item_dict)
+
+        items = self.current_items()
+
+        # Insert immediately after the selected item
+        try:
+            idx = items.index(item)
+            items.insert(idx + 1, new_item)
+        except ValueError:
+            items.append(new_item)
+
+        self.update_item_list()
+        self.set_dirty()
+
+        # Select the newly duplicated item
+        logger.info(f"Item duplicated: {new_item.label}")
+        for w in self.item_widgets:
+            if w.item == new_item:
+                self.on_item_clicked(w)
+                # Ensure the newly created item is visible in the scroll area
+                QTimer.singleShot(0, lambda target=w: self.scroll_area.ensureWidgetVisible(target))
+                break
+
     def move_up(self):
         if not self.selected_item_widget:
             return
@@ -1174,6 +1279,225 @@ class SettingsWindow(QWidget):
                 self.set_dirty()
         except (RuntimeError, ValueError):
             self.selected_item_widget = None
+
+    def move_item_out_selected(self):
+        """Move the currently selected item to the parent menu."""
+        if self.selected_item_widget and self._nav_stack:
+            item = self.selected_item_widget.item
+            self.move_item_out(item)
+
+    def eventFilter(self, watched, event):
+        """Handle drag and drop globally for items and navigation."""
+        if event.type() in (QEvent.Type.DragEnter, QEvent.Type.DragMove):
+            if hasattr(event, "mimeData") and event.mimeData().text() == "pie_item_drag":
+                event.acceptProposedAction()
+                if watched == self.scroll_content:
+                    self.update_drag_placeholder(event.position().toPoint())
+                elif watched in (self.btn_nav_up, self.lbl_breadcrumb):
+                    self.btn_nav_up.setStyleSheet("background-color: #0078d4; color: white;")
+                    self.lbl_breadcrumb.setStyleSheet("font-weight: bold; color: #0078d4;")
+                return True
+        elif event.type() == QEvent.Type.DragLeave:
+            if watched == self.scroll_content:
+                self.drag_placeholder.hide()
+                # Clear all item highlights
+                for w in self.item_widgets:
+                    if w.item.action_type == "submenu":
+                        w._update_style()
+            elif watched in (self.btn_nav_up, self.lbl_breadcrumb):
+                self.btn_nav_up.setStyleSheet("")
+                self.lbl_breadcrumb.setStyleSheet("font-weight: bold; color: #888;")
+        elif event.type() == QEvent.Type.Drop:
+            source = event.source()
+            if source and isinstance(source, PieItemWidget):
+                if watched in (self.btn_nav_up, self.lbl_breadcrumb):
+                    self.btn_nav_up.setStyleSheet("")
+                    self.lbl_breadcrumb.setStyleSheet("font-weight: bold; color: #888;")
+                    self.move_item_out(source.item)
+                    event.acceptProposedAction()
+                    return True
+                elif watched == self.scroll_content:
+                    # Finalize drop
+                    final_placeholder_idx = self.items_layout.indexOf(self.drag_placeholder)
+                    self.drag_placeholder.hide()
+
+                    # Check if we were in "into" mode (at the current drop position)
+                    target_w = self.get_item_under_pos(event.position().toPoint())
+
+                    if target_w and target_w.item.action_type == "submenu":
+                        local_pos = target_w.mapFrom(
+                            self.scroll_content, event.position().toPoint()
+                        )
+                        if 15 < local_pos.y() < target_w.height() - 15:
+                            self.on_item_drag_dropped(source, target_w, "into")
+                            event.acceptProposedAction()
+                            return True
+
+                    if final_placeholder_idx != -1:
+                        # Move source item to this position
+                        self.move_item_to_layout_index(source, final_placeholder_idx)
+                        event.acceptProposedAction()
+                        return True
+        return super().eventFilter(watched, event)
+
+    def move_item_to_layout_index(self, source_w: PieItemWidget, target_idx: int):
+        """Reorder list based on the visual layout index."""
+        items = self.current_items()
+        try:
+            old_idx = items.index(source_w.item)
+            item = items.pop(old_idx)
+            # Adjustment: if moving forward, target_idx is visually after all items BEFORE it.
+            # But the pop() shifted the remaining items back.
+            if target_idx > old_idx:
+                target_idx -= 1
+
+            # Bound check
+            target_idx = max(0, min(len(items), target_idx))
+            items.insert(target_idx, item)
+
+            self.update_item_list()
+            self.set_dirty()
+            # Select the item in its new home
+            for w in self.item_widgets:
+                if w.item == item:
+                    self.on_item_clicked(w)
+                    break
+        except Exception as e:
+            logger.error(f"Failed to reorder item: {e}")
+            self.update_item_list()
+
+    def get_item_under_pos(self, pos: QPoint):
+        """Find the PieItemWidget at the given scroll_content position."""
+        for w in self.item_widgets:
+            if w.y() <= pos.y() <= w.y() + w.height():
+                return w
+        return None
+
+    def update_drag_placeholder(self, pos: QPoint):
+        """Update placeholder position based on vertical centers of VISIBLE items."""
+        # 1. Submenu "Into" Logic
+        target_w = self.get_item_under_pos(pos)
+        is_into = False
+        if target_w and target_w.item.action_type == "submenu":
+            local_pos = target_w.mapFrom(self.scroll_content, pos)
+            if 15 < local_pos.y() < target_w.height() - 15:
+                is_into = True
+
+        # Update Submenu highlights
+        for w in self.item_widgets:
+            if w == target_w and is_into:
+                w.setStyleSheet(
+                    w.styleSheet()
+                    + "\nPieItemWidget { border: 2px solid #00c853; background-color: rgba(0, 200, 83, 0.1); }"
+                )
+            elif w.item.action_type == "submenu":
+                w._update_style()
+
+        if is_into:
+            self.drag_placeholder.hide()
+            return
+
+        # 2. Reordering Placeholder Logic (Using centers of visible items)
+        visible_widgets = []
+        for i in range(self.items_layout.count()):
+            item = self.items_layout.itemAt(i)
+            if item is None:
+                continue
+            widget = item.widget()
+            if widget is not None and widget.isVisible() and widget != self.drag_placeholder:
+                visible_widgets.append(widget)
+
+        target_visual_idx = 0
+
+        # Build natural centers: If the placeholder is already in the layout and above a widget,
+        # its y() is naturally pushed down by the placeholder's height + spacing.
+        current_placeholder_idx = self.items_layout.indexOf(self.drag_placeholder)
+        placeholder_offset = (
+            self.drag_placeholder.height() + self.items_layout.spacing()
+            if current_placeholder_idx != -1
+            else 0
+        )
+
+        for vw in visible_widgets:
+            my_idx = self.items_layout.indexOf(vw)
+            # Find the top y coordinate of the widget without the placeholder pushing it
+            natural_y = vw.y()
+            if current_placeholder_idx != -1 and current_placeholder_idx < my_idx:
+                natural_y -= placeholder_offset
+
+            center_y = natural_y + vw.height() / 2
+
+            if pos.y() < center_y:
+                break
+            target_visual_idx += 1
+
+        # Convert visual index to layout index
+        target_layout_idx = 0
+        counted = 0
+        for i in range(self.items_layout.count()):
+            item = self.items_layout.itemAt(i)
+            if not item:
+                continue
+            w_opt = item.widget()
+            if w_opt is None:
+                continue  # Skip stretch/spacers so we don't insert after them
+            if w_opt == self.drag_placeholder:
+                continue
+            if w_opt.isVisible():
+                if counted == target_visual_idx:
+                    break
+                counted += 1
+            target_layout_idx += 1
+
+        if current_placeholder_idx != target_layout_idx:
+            self.items_layout.insertWidget(target_layout_idx, self.drag_placeholder)
+
+        if not self.drag_placeholder.isVisible():
+            self.drag_placeholder.show()
+
+    def on_item_drag_dropped(self, source_w, target_w, action):
+        """Handle item movement into submenus. Reordering is handled by move_item_to_layout_index."""
+        if source_w == target_w or action != "into":
+            return
+
+        source_item = source_w.item
+        target_item = target_w.item
+        items = self.current_items()
+
+        try:
+            src_idx = items.index(source_item)
+            # Move source_item into target_item's submenu
+            items.pop(src_idx)
+            target_item.submenu_items.append(source_item)
+            logger.info(f"Moved item '{source_item.label}' into submenu '{target_item.label}'")
+        except ValueError:
+            return
+
+        self.update_item_list()
+        self.set_dirty()
+
+    def move_item_out(self, item: PieSlice):
+        """Move an item from current submenu to the parent menu."""
+        if not self._nav_stack:
+            return  # Already at root
+
+        current_list = self.current_items()
+        if item not in current_list:
+            return
+
+        # Pop from current
+        current_list.remove(item)
+
+        # Find parent list
+        self._nav_stack.pop()
+        parent_list = self.current_items()
+        parent_list.append(item)
+
+        # Update breadcrumb and list (breadcrumb was already popped)
+        self.update_breadcrumb_ui()
+        self.update_item_list()
+        self.set_dirty()
+        logger.info(f"Moved item '{item.label}' out to parent menu")
 
     def export_settings(self) -> None:
         """Export current settings to a JSON file."""
