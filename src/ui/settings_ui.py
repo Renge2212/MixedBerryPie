@@ -1657,7 +1657,7 @@ class ItemEditorDialog(QDialog):
 
     def save(self):
         label = self.label_edit.text().strip()
-        action_type = self.action_type_combo.currentText()
+        action_type = self.action_type_combo.currentData()
         key = "" if action_type == "submenu" else self.key_edit.text().strip()
 
         if not label:

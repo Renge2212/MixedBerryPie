@@ -23,8 +23,8 @@ def test_conflict_trigger_key(validation_setup):
     dialog, mock_msgbox = validation_setup
 
     dialog.label_edit.setText("Test Item")
-    # Set action type to 'key'
-    index = dialog.action_type_combo.findText("key")
+    # Set action type to 'key' (use findData because text is translated)
+    index = dialog.action_type_combo.findData("key")
     dialog.action_type_combo.setCurrentIndex(index)
 
     # Set key to trigger key 'tab' (case insensitive check)
@@ -51,7 +51,7 @@ def test_no_conflict_different_key(validation_setup):
     dialog, mock_msgbox = validation_setup
 
     dialog.label_edit.setText("Test Item")
-    index = dialog.action_type_combo.findText("key")
+    index = dialog.action_type_combo.findData("key")
     dialog.action_type_combo.setCurrentIndex(index)
     dialog.key_edit.setText("a")
 
