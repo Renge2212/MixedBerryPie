@@ -474,11 +474,13 @@ class PieOverlay(QWidget):
         if num_items == 0:
             return
 
-        # Draw layers in two passes to ensure text (content) is always on top of backgrounds
-        # Pass 1: Backgrounds
+        # Draw layers in three passes to ensure labels are always on top of icons
+        # Pass 1: Slice backgrounds
         self._draw_layer(painter, 0, self.menu_items, self.active_path, phase="background")
-        # Pass 2: Content (Icons and Text)
-        self._draw_layer(painter, 0, self.menu_items, self.active_path, phase="content")
+        # Pass 2: Icons only
+        self._draw_layer(painter, 0, self.menu_items, self.active_path, phase="icons")
+        # Pass 3: Labels on top of everything
+        self._draw_layer(painter, 0, self.menu_items, self.active_path, phase="labels")
 
     def _draw_layer(
         self,
@@ -561,8 +563,12 @@ class PieOverlay(QWidget):
                     painter.fillPath(path_obj, QBrush(base_color))
 
             # 3. Draw Label and Icon
-            if phase in ("both", "content"):
-                self._draw_item_content(
+            if phase in ("both", "content", "icons"):
+                self._draw_item_icon(
+                    painter, item, i, num_items, start_angle + angle_span / 2, rad_inner, rad_outer
+                )
+            if phase in ("both", "content", "labels"):
+                self._draw_item_label(
                     painter, item, i, num_items, start_angle + angle_span / 2, rad_inner, rad_outer
                 )
 
@@ -666,7 +672,7 @@ class PieOverlay(QWidget):
                 return palette[color_idx]
         return item.color
 
-    def _draw_item_content(
+    def _draw_item_icon(
         self,
         painter: QPainter,
         item: PieSlice,
@@ -676,75 +682,75 @@ class PieOverlay(QWidget):
         rad_inner: float,
         rad_outer: float,
     ) -> None:
-        """Draw icon and label for the item."""
-        # Calculate center position of the content
+        """Draw the icon for a pie slice."""
+        if not item.icon_path:
+            return
+
         rad_mid = (rad_inner + rad_outer) / 2
         rad_angle = math.radians(mid_angle)
-
-        # Polar to Cartesian
         cx = self.center_pos.x() + rad_mid * math.cos(rad_angle)
         cy = self.center_pos.y() + rad_mid * math.sin(rad_angle)
 
-        # Draw Icon
         icon_size = self.icon_size
+        resolved_path = resolve_icon_path(item.icon_path)
+        if not resolved_path:
+            return
 
-        # If item has an icon path, load and draw it
-        if item.icon_path:
-            # Resolve path (handles relative paths like 'icons/pencil.svg')
-            resolved_path = resolve_icon_path(item.icon_path)
-            if not resolved_path:
-                return
+        cache_key = (resolved_path, icon_size)
 
-            # Cache key
-            cache_key = (resolved_path, icon_size)
-
-            # Check if SVG or standard image
-            if resolved_path.lower().endswith(".svg"):
-                if cache_key not in self._icon_cache:
-                    pixmap = QPixmap(icon_size, icon_size)
-                    pixmap.fill(Qt.GlobalColor.transparent)
-                    renderer = QSvgRenderer(resolved_path)
-                    if renderer.isValid():
-                        svg_painter = QPainter(pixmap)
-                        # High quality render
-                        svg_painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-                        svg_painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-                        renderer.render(svg_painter)
-                        svg_painter.end()
-                        self._icon_cache[cache_key] = pixmap
-                    else:
-                        self._icon_cache[cache_key] = QPixmap()
-
-                pixmap = self._icon_cache[cache_key]
-                if not pixmap.isNull():
-                    painter.drawPixmap(int(cx - icon_size / 2), int(cy - icon_size / 2 - 6), pixmap)
-            else:
-                # Handle Raster
-                if cache_key not in self._icon_cache:
-                    pixmap = QIcon(resolved_path).pixmap(int(icon_size), int(icon_size))
+        if resolved_path.lower().endswith(".svg"):
+            if cache_key not in self._icon_cache:
+                pixmap = QPixmap(icon_size, icon_size)
+                pixmap.fill(Qt.GlobalColor.transparent)
+                renderer = QSvgRenderer(resolved_path)
+                if renderer.isValid():
+                    svg_painter = QPainter(pixmap)
+                    svg_painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                    svg_painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+                    renderer.render(svg_painter)
+                    svg_painter.end()
                     self._icon_cache[cache_key] = pixmap
+                else:
+                    self._icon_cache[cache_key] = QPixmap()
+        else:
+            if cache_key not in self._icon_cache:
+                pixmap = QIcon(resolved_path).pixmap(int(icon_size), int(icon_size))
+                self._icon_cache[cache_key] = pixmap
 
-                pixmap = self._icon_cache[cache_key]
-                if not pixmap.isNull():
-                    painter.drawPixmap(int(cx - icon_size / 2), int(cy - icon_size / 2 - 6), pixmap)
+        pixmap = self._icon_cache[cache_key]
+        if not pixmap.isNull():
+            painter.drawPixmap(int(cx - icon_size / 2), int(cy - icon_size / 2 - 6), pixmap)
+
+    def _draw_item_label(
+        self,
+        painter: QPainter,
+        item: PieSlice,
+        index: int,
+        total: int,
+        mid_angle: float,
+        rad_inner: float,
+        rad_outer: float,
+    ) -> None:
+        """Draw the text label for a pie slice (always rendered on top of icons)."""
+        rad_mid = (rad_inner + rad_outer) / 2
+        rad_angle = math.radians(mid_angle)
+        cx = self.center_pos.x() + rad_mid * math.cos(rad_angle)
+        cy = self.center_pos.y() + rad_mid * math.sin(rad_angle)
 
         # Setup Font
         if self._item_font:
             painter.setFont(self._item_font)
-            font = self._item_font
         else:
             font = QFont(self.settings.font_family)
             font.setBold(True)
             font.setPointSize(self.text_size)
             painter.setFont(font)
 
-        label_text = item.label or ""
-        if not label_text:
+        label = item.label or ""
+        if not label:
             return
 
-        label = label_text
-
-        # Calculate logical bounds simply to make aligned rendering easier
+        icon_size = self.icon_size
         if item.icon_path:
             text_rect = QRectF(cx - 60, cy + icon_size / 2 - 4, 120, 40)
             flags = (
@@ -754,7 +760,7 @@ class PieOverlay(QWidget):
             text_rect = QRectF(cx - 60, cy - 20, 120, 40)
             flags = Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap
 
-        # Determine Text Color based on background brightness
+        # Determine Text Color
         if self.settings.dynamic_text_color:
             bg_lightness = QColor(item.color).lightness()
             text_color = Qt.GlobalColor.black if bg_lightness > 180 else Qt.GlobalColor.white
@@ -765,7 +771,7 @@ class PieOverlay(QWidget):
             text_color = Qt.GlobalColor.white
             outline_color = QColor(0, 0, 0, 150)
 
-        # Draw Outline manually if path-filling is too complex to deal with alignment
+        # Draw text outline
         if self.settings.enable_text_outline:
             painter.setPen(outline_color)
             for dx, dy in [
@@ -782,9 +788,22 @@ class PieOverlay(QWidget):
                 (-2, 0),
                 (0, -2),
             ]:
-                offset_rect = text_rect.translated(dx, dy)
-                painter.drawText(offset_rect, flags, label)
+                painter.drawText(text_rect.translated(dx, dy), flags, label)
 
         # Draw main text body
         painter.setPen(QColor(text_color))
         painter.drawText(text_rect, flags, label)
+
+    def _draw_item_content(
+        self,
+        painter: QPainter,
+        item: PieSlice,
+        index: int,
+        total: int,
+        mid_angle: float,
+        rad_inner: float,
+        rad_outer: float,
+    ) -> None:
+        """Draw icon and label (legacy single-pass helper)."""
+        self._draw_item_icon(painter, item, index, total, mid_angle, rad_inner, rad_outer)
+        self._draw_item_label(painter, item, index, total, mid_angle, rad_inner, rad_outer)
