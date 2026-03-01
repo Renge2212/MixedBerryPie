@@ -17,6 +17,7 @@ from PyQt6.QtGui import (
     QColor,
     QCursor,
     QFont,
+    QGuiApplication,
     QIcon,
     QPainter,
     QPainterPath,
@@ -172,14 +173,17 @@ class PieOverlay(QWidget):
         # Update dimensions and get screen geometry
         self._update_dimensions()
 
-        # Ensure the overlay covers the primary screen continuously
-        screen = QApplication.primaryScreen()
+        # Ensure the overlay covers the correct screen containing the cursor
+        cursor_pos = QCursor.pos()
+        screen = QGuiApplication.screenAt(cursor_pos)
+        if not screen:
+            screen = QApplication.primaryScreen()
+
         if screen:
             screen_rect = screen.geometry()
             if self.geometry() != screen_rect:
                 self.setGeometry(screen_rect)
 
-            cursor_pos = QCursor.pos()
             self.center_pos = QPoint(
                 cursor_pos.x() - screen_rect.x(), cursor_pos.y() - screen_rect.y()
             )
