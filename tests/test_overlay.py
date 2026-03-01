@@ -208,24 +208,27 @@ def test_show_menu_positioning(overlay_setup):
 
 
 def test_show_menu_on_secondary_screen(overlay_setup):
-    """Test show_menu covers the primary screen for now (as implemented)"""
+    """Test show_menu falls back to primary screen when screenAt returns None"""
     overlay, _, _ = overlay_setup
 
+    mock_screen = MagicMock()
+    mock_screen.geometry.return_value = QRect(0, 0, 1920, 1080)
+
     # Cursor on secondary screen (offset by 1920)
-    with patch("src.ui.overlay.QCursor.pos", return_value=QPoint(2000, 100)):
-        # Mock screen geometry (assuming primary screen is still 0,0)
-        mock_screen = MagicMock()
-        mock_screen.geometry.return_value = QRect(0, 0, 1920, 1080)
-        with patch("PyQt6.QtWidgets.QApplication.primaryScreen", return_value=mock_screen):
-            overlay.show_menu()
+    with (
+        patch("src.ui.overlay.QCursor.pos", return_value=QPoint(2000, 100)),
+        patch("src.ui.overlay.QGuiApplication.screenAt", return_value=None),
+        patch("PyQt6.QtWidgets.QApplication.primaryScreen", return_value=mock_screen),
+    ):
+        overlay.show_menu()
 
-            # Window should be size of primary screen
-            geometry = overlay.geometry()
-            assert geometry.width() == 1920
-            assert geometry.height() == 1080
+        # Window should be size of primary screen
+        geometry = overlay.geometry()
+        assert geometry.width() == 1920
+        assert geometry.height() == 1080
 
-            # center_pos logic subtracting primary screen offset (0,0)
-            assert overlay.center_pos == QPoint(2000, 100)
+        # center_pos = cursor - screen_rect.topLeft() = (2000,100) - (0,0) = (2000,100)
+        assert overlay.center_pos == QPoint(2000, 100)
 
 
 def test_many_items(qapp):

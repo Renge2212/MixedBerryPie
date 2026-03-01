@@ -11,7 +11,7 @@ from src.ui.settings_ui import ItemEditorDialog, SettingsWindow
 @pytest.fixture
 def validation_setup(qapp):
     """Fixture for ItemEditorDialog tests"""
-    with patch("src.ui.settings_ui.QMessageBox") as mock_msgbox:
+    with patch("src.ui.components.item_editor.QMessageBox") as mock_msgbox:
         dialog = ItemEditorDialog(trigger_key="tab")
         yield dialog, mock_msgbox
         dialog.close()

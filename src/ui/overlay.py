@@ -738,75 +738,53 @@ class PieOverlay(QWidget):
             font.setPointSize(self.text_size)
             painter.setFont(font)
 
-        # Determine text color based on background luminance if enabled
-        effective_color_str = self._get_effective_color(item, index, total)
-        text_color = Qt.GlobalColor.white
-        outline_color = QColor(effective_color_str).darker(150)
+        label_text = item.label or ""
+        if not label_text:
+            return
 
-        if self.settings.dynamic_text_color:
-            bg_color = QColor(effective_color_str)
-            # Relative luminance formula (approximate)
-            luminance = (
-                0.299 * bg_color.red() + 0.587 * bg_color.green() + 0.114 * bg_color.blue()
-            ) / 255.0
-            if luminance > 0.6:  # Bright background
-                text_color = Qt.GlobalColor.black
-                # Use a lighter outline for black text on bright backgrounds
-                outline_color = QColor(effective_color_str).lighter(150)
+        label = label_text[:6] + ".." if len(label_text) > 8 else label_text
 
-        # Calculate text position
+        # Calculate logical bounds simply to make aligned rendering easier
         if item.icon_path:
-            # Text physically tight below the icon, align top
             text_rect = QRectF(cx - 60, cy + icon_size / 2 - 4, 120, 40)
             flags = (
                 Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap
             )
         else:
-            # Text perfectly centered vertically if no icon
             text_rect = QRectF(cx - 60, cy - 20, 120, 40)
             flags = Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap
 
-        # Ensure we have a valid label before painting
-        label_text = item.label or ""
-        if not label_text:
-            return
-
-        if self.settings.enable_text_outline:
-            # Create a painter path for the text to draw outline and fill efficiently
-            text_path = QPainterPath()
-
-            # We need to manually calculate the bounding box for center alignment since
-            # addText doesn't natively support Qt.AlignmentFlag layout like drawText does.
-            metrics = painter.fontMetrics()
-            text_width = metrics.horizontalAdvance(label_text)
-
-            # Y position formulation: PyQt addText uses the baseline of the font.
-            # AlignTop (with icon) vs AlignCenter (no icon)
-            if item.icon_path:
-                text_x = cx - (text_width / 2)
-                text_y = text_rect.top() + metrics.ascent()
-            else:
-                text_x = cx - (text_width / 2)
-                text_y = cy + (metrics.ascent() / 2) - (metrics.descent() / 2)
-
-            text_path.addText(text_x, text_y, font, label_text)
-
-            # Draw Outline (Stroke)
-            outline_pen = QPen(
-                outline_color,
-                2.5,
-                Qt.PenStyle.SolidLine,
-                Qt.PenCapStyle.RoundCap,
-                Qt.PenJoinStyle.RoundJoin,
+        # Determine Text Color based on background brightness
+        if self.settings.dynamic_text_color:
+            bg_lightness = QColor(item.color).lightness()
+            text_color = Qt.GlobalColor.black if bg_lightness > 180 else Qt.GlobalColor.white
+            outline_color = (
+                QColor(255, 255, 255, 150) if bg_lightness > 180 else QColor(0, 0, 0, 150)
             )
-            painter.setPen(outline_pen)
-            painter.drawPath(text_path)
-
-            # Draw Fill
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(QBrush(QColor(text_color)))
-            painter.drawPath(text_path)
         else:
-            # Fallback to standard drawText if outline is disabled
-            painter.setPen(QColor(text_color))
-            painter.drawText(text_rect, flags, label_text)
+            text_color = Qt.GlobalColor.white
+            outline_color = QColor(0, 0, 0, 150)
+
+        # Draw Outline manually if path-filling is too complex to deal with alignment
+        if self.settings.enable_text_outline:
+            painter.setPen(outline_color)
+            for dx, dy in [
+                (-1, -1),
+                (0, -1),
+                (1, -1),
+                (-1, 0),
+                (1, 0),
+                (-1, 1),
+                (0, 1),
+                (1, 1),
+                (0, 2),
+                (2, 0),
+                (-2, 0),
+                (0, -2),
+            ]:
+                offset_rect = text_rect.translated(dx, dy)
+                painter.drawText(offset_rect, flags, label)
+
+        # Draw main text body
+        painter.setPen(QColor(text_color))
+        painter.drawText(text_rect, flags, label)
