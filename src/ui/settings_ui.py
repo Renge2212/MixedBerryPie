@@ -273,9 +273,10 @@ class SettingsWindow(QWidget):
 
         # Tab 2: Appearance
         appearance_tab = QWidget()
-        appearance_layout = QVBoxLayout()
+        appearance_layout = QHBoxLayout()  # Side-by-side: settings on left, preview on right
         appearance_layout.setSpacing(10)
         appearance_tab.setLayout(appearance_layout)
+        appearance_settings_layout = QVBoxLayout()  # Settings form column
 
         # Tab 3: Behavior
         behavior_tab = QWidget()
@@ -329,6 +330,8 @@ class SettingsWindow(QWidget):
         self.menu_opacity_slider.setValue(self.settings.menu_opacity)
         self.menu_opacity_slider.value_changed.connect(self.set_dirty)
         self.menu_opacity_slider.value_changed.connect(self.preview_widget.update_opacity)
+        # Also update appearance tab preview (widget created later; connected after)
+        self.menu_opacity_slider.value_changed.connect(self._update_appearance_preview_opacity)
         adv_form.addRow(self.lbl_menu_opacity, self.menu_opacity_slider)
 
         # Auto-scale (placed right after menu opacity)
@@ -441,8 +444,22 @@ class SettingsWindow(QWidget):
         adv_form.addRow(self.lbl_show_animations, self.show_animations_checkbox)
 
         self.group_adv.setLayout(adv_form)
-        appearance_layout.addWidget(self.group_adv)
-        appearance_layout.addStretch()
+        appearance_settings_layout.addWidget(self.group_adv)
+        appearance_settings_layout.addStretch()
+
+        # Live preview for the Appearance tab
+        self.appearance_preview_group = QGroupBox("Live Preview")
+        appearance_preview_layout = QVBoxLayout()
+        self.appearance_preview_widget = PiePreviewWidget()
+        self.appearance_preview_widget.update_opacity(self.settings.menu_opacity)
+        self.appearance_preview_widget.update_unified_color(
+            self.settings.color_mode, self.settings.unified_color, self.settings.selected_preset
+        )
+        appearance_preview_layout.addWidget(self.appearance_preview_widget, 1)
+        self.appearance_preview_group.setLayout(appearance_preview_layout)
+
+        appearance_layout.addLayout(appearance_settings_layout, 1)
+        appearance_layout.addWidget(self.appearance_preview_group, 1)
 
         # ── Group 3: 動作 ─────────────────────────────────────────
         self.group_behavior = QGroupBox()
@@ -985,6 +1002,10 @@ class SettingsWindow(QWidget):
                         parent_items_stack.append(list(ancestor.submenu_items))
                     current_list = list(ancestor.submenu_items)
             self.preview_widget.update_context(items, depth, parent_items_stack, selected_indices)
+
+        # Also sync the Appearance tab's preview with the current items
+        if hasattr(self, "appearance_preview_widget"):
+            self.appearance_preview_widget.update_items(items)
 
     def on_item_clicked(self, widget):
         # Deselect previous
@@ -1706,15 +1727,24 @@ class SettingsWindow(QWidget):
         palette = self._get_current_palette() if mode == "preset" else []
         self.preset_visual.set_palette(palette)
 
-        self.preview_widget.update_unified_color(
+        color_args = (
             mode,
             self._current_unified_color,
             self.combo_preset.currentData(),
-            palette=palette,
         )
+        self.preview_widget.update_unified_color(*color_args, palette=palette)
+
+        # Also update the Appearance tab's live preview if it already exists
+        if hasattr(self, "appearance_preview_widget"):
+            self.appearance_preview_widget.update_unified_color(*color_args, palette=palette)
 
         # Update item list to hide/show individual color boxes
         self.update_item_list()
+
+    def _update_appearance_preview_opacity(self, value: int) -> None:
+        """Relay opacity changes to the Appearance tab live preview."""
+        if hasattr(self, "appearance_preview_widget"):
+            self.appearance_preview_widget.update_opacity(value)
 
     def _refresh_preset_list(self) -> None:
         """Populate the preset combo box with merged built-in and custom presets."""
