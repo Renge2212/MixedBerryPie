@@ -1,0 +1,53 @@
+/* custom styles for MixedBerryPie */
+
+body,
+p,
+ul,
+ol,
+li,
+table,
+td,
+th {
+    color: #eeeeee !important;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: #ffffff !important;
+}
+
+.site-header {
+    border-top: 4px solid #ea80fc;
+    /* Brighter pink top border */
+}
+
+/* 日本語タイトル（MixedBerryPie ドキュメント）が変な位置で改行されるのを防ぐ */
+.site-title {
+    word-break: keep-all !important;
+    overflow-wrap: anywhere;
+}
+
+/* Subtle gradient on the sidebar active links for a premium feel */
+.side-bar .nav-list-item.active>.nav-list-link {
+    background: linear-gradient(90deg, rgba(234, 128, 252, 0.15) 0%, rgba(234, 128, 252, 0) 100%);
+    border-left: 4px solid #ea80fc;
+    padding-left: 12px;
+    font-weight: 600;
+    color: #ffffff !important;
+}
+
+.text-gray-100 {
+    color: #f8f9fa !important;
+}
+
+.text-gray-200 {
+    color: #e9ecef !important;
+}
+
+.text-gray-300 {
+    color: #dee2e6 !important;
+}

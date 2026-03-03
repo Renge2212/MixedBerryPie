@@ -1,0 +1,11 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+
+# gem "rails"
+gem "jekyll"
+gem "jekyll-remote-theme"
+gem "just-the-docs"
+
+# Override Sass version to avoid Dart Sass 3.0 deprecation warnings
+gem "sass-embedded", "~> 1.77.8"

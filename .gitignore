@@ -91,3 +91,5 @@ package/*.msix
 # Local test certificate (do not commit)
 package/LocalTestCert.pfx
 package/*.pfx
+/docs/_site
+/docs/.jekyll-cache

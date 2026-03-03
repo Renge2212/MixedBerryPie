@@ -1,0 +1,43 @@
+/* custom setup for MixedBerryPie */
+/* Base colors for the MixedBerry dark theme - adjusted for readability */
+
+$bg-dark: #121212;
+/* Neutral dark background */
+$sidebar-color: #1a151d;
+/* Very subtle purple hint */
+
+/* Accents - Brighter and softer for dark mode contrast */
+$berry-pink: #ea80fc;
+/* Lighter, brighter neon-pastel pink instead of dark magenta */
+$berry-red: #ff8a80;
+/* Brighter, softer red-coral */
+
+/* Overrides for just-the-docs Dark Theme */
+
+$body-background-color: $bg-dark;
+$sidebar-color: $sidebar-color;
+
+/* Pure neutrals for body text */
+$body-text-color: #f0f0f0;
+$body-heading-color: #ffffff;
+$nav-text-color: #e0e0e0;
+$nav-child-text-color: #cccccc;
+
+/* Links */
+$link-color: #ea80fc;
+/* Use the bright pastel pink for links to guarantee readability */
+
+/* Borders and highlights */
+$border-color: #333333;
+$feedback-color: lighten($sidebar-color, 15%);
+$search-background-color: #222222;
+$search-result-preview-color: #ea80fc;
+
+/* Brand colors for buttons/CTA */
+$blue-000: $berry-pink;
+$purple-000: $berry-red;
+
+$btn-primary-color: #ffffff;
+$btn-primary-border-color: $berry-pink;
+$btn-primary-background-color: rgba($berry-pink, 0.25);
+/* Subtler button background */

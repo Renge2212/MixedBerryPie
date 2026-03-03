@@ -1,0 +1,27 @@
+title: MixedBerryPie ドキュメント
+description: MixedBerryPie の詳細な操作説明・設定ガイドです。
+remote_theme: just-the-docs/just-the-docs
+
+url: https://renge2212.github.io
+baseurl: /MixedBerryPie
+
+# just-the-docs 設定
+color_scheme: dark
+search_enabled: true
+heading_anchors: true
+
+aux_links:
+  "GitHub":
+    - "https://github.com/Renge2212/MixedBerryPie"
+  "Microsoft Store":
+    - "https://apps.microsoft.com/detail/9ns29508pnzp"
+
+aux_links_new_tab: true
+
+footer_content: "© 2026 Renge2212 — MIT License / バイナリは GPL v3"
+
+plugins:
+  - jekyll-remote-theme
+
+sass:
+  quiet_deps: true
