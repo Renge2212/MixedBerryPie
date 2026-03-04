@@ -453,7 +453,7 @@ class SettingsWindow(QWidget):
         appearance_settings_layout.addStretch()
 
         # Live preview for the Appearance tab
-        self.appearance_preview_group = QGroupBox("Live Preview")
+        self.appearance_preview_group = QGroupBox(self.tr("Live Preview"))
         appearance_preview_layout = QVBoxLayout()
         self.appearance_preview_widget = PiePreviewWidget()
         self.appearance_preview_widget.preview_mode = True

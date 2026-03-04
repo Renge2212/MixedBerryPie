@@ -250,7 +250,7 @@ class PiePreviewWidget(QWidget, PieRenderMixin):
                 icon_path = sample_icons[i % len(sample_icons)]
                 items_to_draw.append(
                     PieSlice(
-                        label=f"Sample {i + 1}",
+                        label=self.tr("Sample {0}").format(i + 1),
                         key="",
                         color="#448AFF",
                         icon_path=icon_path,

@@ -627,6 +627,11 @@ Icon</source>
             <source>No Items</source>
             <translation>アイテムなし</translation>
         </message>
+        <message>
+            <location filename="../../src/ui/components/pie_preview.py" line="253" />
+            <source>Sample {0}</source>
+            <translation>サンプル {0}</translation>
+        </message>
     </context>
     <context>
         <name>PresetEditorDialog</name>
