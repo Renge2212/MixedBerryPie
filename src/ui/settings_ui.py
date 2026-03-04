@@ -347,6 +347,7 @@ class SettingsWindow(QWidget):
         self.icon_size_slider = SteppedSlider(steps=[16, 24, 32, 48, 64, 96, 128], suffix="px")
         self.icon_size_slider.setValue(self.settings.icon_size)
         self.icon_size_slider.value_changed.connect(self.set_dirty)
+        self.icon_size_slider.value_changed.connect(lambda _: self._update_preview_icons())
         self._row_icon_size = (self.lbl_icon_size, self.icon_size_slider)
         adv_form.addRow(self.lbl_icon_size, self.icon_size_slider)
 
@@ -355,6 +356,7 @@ class SettingsWindow(QWidget):
         self.text_size_slider = SteppedSlider(steps=[7, 8, 9, 10, 11, 12, 14, 16, 18], suffix="pt")
         self.text_size_slider.setValue(self.settings.text_size)
         self.text_size_slider.value_changed.connect(self.set_dirty)
+        self.text_size_slider.value_changed.connect(lambda _: self._update_preview_fonts())
         self._row_text_size = (self.lbl_text_size, self.text_size_slider)
         adv_form.addRow(self.lbl_text_size, self.text_size_slider)
 
@@ -363,6 +365,7 @@ class SettingsWindow(QWidget):
         self.text_outline_checkbox = QCheckBox()
         self.text_outline_checkbox.setChecked(self.settings.enable_text_outline)
         self.text_outline_checkbox.stateChanged.connect(self.set_dirty)
+        self.text_outline_checkbox.stateChanged.connect(lambda _: self._update_preview_fonts())
         adv_form.addRow(self.lbl_text_outline, self.text_outline_checkbox)
 
         # Dynamic Text Color
@@ -370,6 +373,7 @@ class SettingsWindow(QWidget):
         self.dynamic_text_checkbox = QCheckBox()
         self.dynamic_text_checkbox.setChecked(self.settings.dynamic_text_color)
         self.dynamic_text_checkbox.stateChanged.connect(self.set_dirty)
+        self.dynamic_text_checkbox.stateChanged.connect(lambda _: self._update_preview_fonts())
         adv_form.addRow(self.lbl_dynamic_text, self.dynamic_text_checkbox)
 
         # Dim Background
@@ -434,6 +438,7 @@ class SettingsWindow(QWidget):
         self.font_family_combo = QFontComboBox()
         self.font_family_combo.setCurrentFont(QFont(self.settings.font_family))
         self.font_family_combo.currentFontChanged.connect(self.set_dirty)
+        self.font_family_combo.currentFontChanged.connect(lambda _: self._update_preview_fonts())
         adv_form.addRow(self.lbl_font_family, self.font_family_combo)
 
         # Animations (Moved to Appearance)
@@ -451,12 +456,18 @@ class SettingsWindow(QWidget):
         self.appearance_preview_group = QGroupBox("Live Preview")
         appearance_preview_layout = QVBoxLayout()
         self.appearance_preview_widget = PiePreviewWidget()
+        self.appearance_preview_widget.preview_mode = True
         self.appearance_preview_widget.update_opacity(self.settings.menu_opacity)
         self.appearance_preview_widget.update_unified_color(
             self.settings.color_mode, self.settings.unified_color, self.settings.selected_preset
         )
+        self.appearance_preview_widget.update()
         appearance_preview_layout.addWidget(self.appearance_preview_widget, 1)
         self.appearance_preview_group.setLayout(appearance_preview_layout)
+
+        # Initialize font settings for both preview widgets
+        self._update_preview_fonts()
+        self._update_preview_icons()
 
         appearance_layout.addLayout(appearance_settings_layout, 1)
         appearance_layout.addWidget(self.appearance_preview_group, 1)
@@ -1003,9 +1014,11 @@ class SettingsWindow(QWidget):
                     current_list = list(ancestor.submenu_items)
             self.preview_widget.update_context(items, depth, parent_items_stack, selected_indices)
 
-        # Also sync the Appearance tab's preview with the current items
+        # Also sync the Appearance tab's preview with the full navigation context
         if hasattr(self, "appearance_preview_widget"):
-            self.appearance_preview_widget.update_items(items)
+            self.appearance_preview_widget.update_context(
+                items, depth, parent_items_stack, selected_indices
+            )
 
     def on_item_clicked(self, widget):
         # Deselect previous
@@ -1786,3 +1799,28 @@ class SettingsWindow(QWidget):
             self._refresh_preset_list()
             self._on_color_mode_ui_changed()
             self.set_dirty()
+
+    def _update_preview_fonts(self) -> None:
+        """Sync the current font settings to the preview widgets."""
+        family = self.font_family_combo.currentFont().family()
+        size = self.text_size_slider.value()
+        outline = self.text_outline_checkbox.isChecked()
+        dynamic_color = self.dynamic_text_checkbox.isChecked()
+
+        if hasattr(self, "preview_widget"):
+            self.preview_widget.update_font_settings(family, size, outline, dynamic_color)
+
+        if hasattr(self, "appearance_preview_widget"):
+            self.appearance_preview_widget.update_font_settings(
+                family, size, outline, dynamic_color
+            )
+
+    def _update_preview_icons(self) -> None:
+        """Sync the current icon size setting to the preview widgets."""
+        size = self.icon_size_slider.value()
+
+        if hasattr(self, "preview_widget"):
+            self.preview_widget.update_icon_settings(size)
+
+        if hasattr(self, "appearance_preview_widget"):
+            self.appearance_preview_widget.update_icon_settings(size)
