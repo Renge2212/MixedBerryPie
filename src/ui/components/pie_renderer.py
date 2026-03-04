@@ -4,7 +4,7 @@ Provides a mixin class to ensure the live preview exactly matches the real overl
 """
 
 import math
-from typing import Any, Protocol
+from typing import Any
 
 from PyQt6.QtCore import QPoint, QRectF, Qt
 from PyQt6.QtGui import (
@@ -23,7 +23,9 @@ from src.core.config import COLOR_PRESETS, AppSettings, PieSlice
 from src.core.utils import resolve_icon_path
 
 
-class PieRenderProtocol(Protocol):
+class PieRenderMixin:
+    """Provides methods for rendering a pie menu."""
+
     settings: AppSettings
     center_pos: QPoint
     radius_inner: float
@@ -35,11 +37,8 @@ class PieRenderProtocol(Protocol):
     _icon_cache: dict[tuple[str, int], Any]
     _item_font: QFont | None
 
-    def _get_slice_center_angle(self, depth: int, path: list[int]) -> float: ...
-
-
-class PieRenderMixin(PieRenderProtocol):
-    """Provides methods for rendering a pie menu."""
+    def _get_slice_center_angle(self, depth: int, path: list[int]) -> float:
+        raise NotImplementedError
 
     def _draw_layer(
         self,
