@@ -12,56 +12,80 @@ LOGS_DIR.mkdir(parents=True, exist_ok=True)
 # Log file path
 LOG_FILE = LOGS_DIR / "mixedberrypie.log"
 
-# Log level constants
+# Root logger name for the application
+_ROOT_LOGGER = "piemenu"
 
 
-def get_logger(name: str) -> logging.Logger:
-    """Get a configured logger with the given name.
+class SafeRotatingFileHandler(logging.handlers.RotatingFileHandler):
+    """Windows-safe rotating file handler.
 
-    Sets up a logger with both console and file handlers.
-    The file handler uses a rotating file to manage log size.
-
-    Args:
-        name: Name for the logger (usually __name__)
-
-    Returns:
-        Configured logger instance
+    The standard RotatingFileHandler fails on Windows with WinError 32
+    because it tries to rename an open file. This subclass closes the
+    file stream before rotating, which avoids the lock conflict.
     """
-    logger = logging.getLogger(name)
 
-    # If logger already has handlers, don't add more (avoid duplicate logs)
-    if logger.handlers:
-        return logger
-
-    logger.setLevel(logging.DEBUG)
-
-    # Format
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
-    )
-
-    # Console handler
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    console_handler.setLevel(logging.WARNING)
-    logger.addHandler(console_handler)
-
-    # File handler (Rotating)
-    # Max 5MB per file, keep 3 backups
-    file_handler = logging.handlers.RotatingFileHandler(
-        LOG_FILE, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
-    )
-    file_handler.setFormatter(formatter)
-    file_handler.setLevel(logging.DEBUG)
-    logger.addHandler(file_handler)
-
-    return logger
+    def doRollover(self) -> None:
+        if self.stream:
+            self.stream.close()
+            self.stream = None  # type: ignore[assignment]
+        super().doRollover()
 
 
 def setup_logger() -> None:
     """Initialize the base 'piemenu' logger with handlers.
 
-    This ensures that all child loggers (e.g., 'piemenu.app')
-    inherit these settings.
+    File and console handlers are attached ONLY to this root logger.
+    All child loggers (e.g., 'piemenu.app') inherit via propagation,
+    so only one file handle is ever open at a time — avoiding WinError 32
+    on Windows when the rotating handler tries to rename the log file.
     """
-    get_logger("piemenu")
+    root = logging.getLogger(_ROOT_LOGGER)
+
+    if root.handlers:
+        return  # Already configured
+
+    root.setLevel(logging.DEBUG)
+
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+    )
+
+    # Console handler (warnings and above)
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    console_handler.setLevel(logging.WARNING)
+    root.addHandler(console_handler)
+
+    # File handler — single instance shared by all child loggers via propagation
+    file_handler = SafeRotatingFileHandler(
+        LOG_FILE, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
+    )
+    file_handler.setFormatter(formatter)
+    file_handler.setLevel(logging.DEBUG)
+    root.addHandler(file_handler)
+
+
+def get_logger(name: str) -> logging.Logger:
+    """Get a named child logger under the 'piemenu' namespace.
+
+    The logger propagates to the root 'piemenu' logger which holds the
+    actual handlers. No additional handlers are added here.
+
+    The name is automatically placed under the 'piemenu' hierarchy so
+    that propagation works regardless of what name is passed in:
+      - 'piemenu.app'          -> used as-is
+      - 'src.core.hook_manager'-> becomes 'piemenu.src.core.hook_manager'
+      - 'win32_input'          -> becomes 'piemenu.win32_input'
+
+    Args:
+        name: Logger name (e.g. __name__ or 'piemenu.app')
+
+    Returns:
+        Logger instance that propagates to the piemenu root logger
+    """
+    # Ensure the root logger is configured before returning any child
+    setup_logger()
+    # Ensure the name is under the piemenu hierarchy
+    if not name.startswith(_ROOT_LOGGER):
+        name = f"{_ROOT_LOGGER}.{name}"
+    return logging.getLogger(name)
