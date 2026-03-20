@@ -95,7 +95,20 @@ print(get_app_display_name())
     $OutputInstaller = "$ProjectRoot\Output\${AppName}_Setup_v*.exe"
     Write-Host "Application name: $AppName"
 
-    # 2. Run Python Build Script
+    # 2. Sync version from pyproject.toml into MixedBerryPie.iss
+    Write-Step "Syncing version from pyproject.toml to MixedBerryPie.iss..."
+    $SyncScript = "$ProjectRoot\scripts\update_version.py"
+    if ($PythonCmd.Count -eq 3) {
+        & $PythonCmd[0] $PythonCmd[1] $PythonCmd[2] $SyncScript
+    } else {
+        & $PythonCmd[0] $SyncScript
+    }
+    if ($LASTEXITCODE -ne 0) {
+        throw "Version sync failed. Ensure pyproject.toml has a valid [project] version."
+    }
+    Write-Success "Version synced successfully."
+
+    # 3. Run Python Build Script
     Write-Step "Building executable with PyInstaller..."
     
     $BuildProcess = Start-Process -FilePath "powershell" -ArgumentList "-Command $PythonCmdStr $BuildScript" -Wait -PassThru -NoNewWindow

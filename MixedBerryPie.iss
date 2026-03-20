@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "MixedBerryPie"
-#define MyAppVersion "1.2.0"
+#define MyAppVersion "1.4.0"
 #define MyAppPublisher "Renge2212"
 #define MyAppURL "https://github.com/Renge2212/MixedBerryPie"
 #define MyAppExeName "MixedBerryPie.exe"
