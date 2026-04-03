@@ -56,13 +56,34 @@ def setup_logger() -> None:
     console_handler.setLevel(logging.WARNING)
     root.addHandler(console_handler)
 
-    # File handler — single instance shared by all child loggers via propagation
-    file_handler = SafeRotatingFileHandler(
-        LOG_FILE, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
-    )
-    file_handler.setFormatter(formatter)
-    file_handler.setLevel(logging.DEBUG)
-    root.addHandler(file_handler)
+
+_FILE_HANDLER = None
+
+
+def set_file_logging(enable: bool) -> None:
+    """Enable or disable file logging.
+
+    Adjusts the log level to INFO instead of DEBUG to reduce log volume.
+    Decreases backupCount to 2 and maxBytes to 2MB to save space.
+    """
+    global _FILE_HANDLER
+    root = logging.getLogger(_ROOT_LOGGER)
+
+    if enable:
+        if _FILE_HANDLER is None:
+            _FILE_HANDLER = SafeRotatingFileHandler(
+                LOG_FILE, maxBytes=2 * 1024 * 1024, backupCount=2, encoding="utf-8"
+            )
+            formatter = logging.Formatter(
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+            )
+            _FILE_HANDLER.setFormatter(formatter)
+            _FILE_HANDLER.setLevel(logging.INFO)  # Changed from DEBUG to INFO to save space
+            root.addHandler(_FILE_HANDLER)
+    elif _FILE_HANDLER is not None:
+        root.removeHandler(_FILE_HANDLER)
+        _FILE_HANDLER.close()
+        _FILE_HANDLER = None
 
 
 def get_logger(name: str) -> logging.Logger:

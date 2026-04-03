@@ -251,6 +251,7 @@ class AppSettings:
     selected_preset: str = "Mixed Berry"
     custom_presets: dict[str, list[str]] = field(default_factory=dict)
     first_run: bool = True
+    enable_file_logging: bool = False
 
 
 @dataclass

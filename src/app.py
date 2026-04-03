@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 from src.core import config, i18n
 from src.core.config import MenuProfile
 from src.core.hook_manager import HookManager, _parse_key
-from src.core.logger import LOGS_DIR, get_logger
+from src.core.logger import LOGS_DIR, get_logger, set_file_logging
 from src.core.utils import get_resource_path
 from src.core.version import __version__
 from src.core.win32_input import get_active_window_info, send_pynput_key_safely
@@ -60,6 +60,8 @@ class MixedBerryPieApp(QObject):
 
         # Config
         self.profiles, self.settings = config.load_config()
+        # Initialize file logging after loading config
+        set_file_logging(self.settings.enable_file_logging)
         app_logger.info(f"Loaded {len(self.profiles)} menu profiles")
 
         # Initialize translator
@@ -237,6 +239,7 @@ class MixedBerryPieApp(QObject):
         """Reload configuration from disk and update components."""
         app_logger.info("Reloading configuration")
         self.profiles, self.settings = config.load_config()
+        set_file_logging(self.settings.enable_file_logging)
         self.overlay.update_settings(self.settings)
         self.update_hooks()
         app_logger.info("Config reloaded successfully")

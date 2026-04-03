@@ -516,7 +516,20 @@ class SettingsWindow(QWidget):
         behavior_layout.addWidget(self.group_trigger_behavior)
         behavior_layout.addStretch()
 
-        # ── Group 5: バックアップ ─────────────────────────────────
+        # ── Group 5: ログ設定 ─────────────────────────────────
+        self.group_logging = QGroupBox()
+        logging_layout = QFormLayout()
+
+        self.lbl_enable_logging = QLabel()
+        self.enable_logging_checkbox = QCheckBox()
+        self.enable_logging_checkbox.setChecked(self.settings.enable_file_logging)
+        self.enable_logging_checkbox.stateChanged.connect(self.set_dirty)
+        logging_layout.addRow(self.lbl_enable_logging, self.enable_logging_checkbox)
+
+        self.group_logging.setLayout(logging_layout)
+        system_layout.addWidget(self.group_logging)
+
+        # ── Group 6: バックアップ ─────────────────────────────────
         self.group_backup = QGroupBox()
         backup_layout = QHBoxLayout()
 
@@ -656,6 +669,13 @@ class SettingsWindow(QWidget):
         self.lbl_long_press.setText(self.tr("Long Press Delay:"))
         self.long_press_spin.setToolTip(
             self.tr("Wait time before showing the menu (ms). 0 for immediate.")
+        )
+
+        # Logging
+        self.group_logging.setTitle(self.tr("Logging"))
+        self.lbl_enable_logging.setText(self.tr("File Logging:"))
+        self.enable_logging_checkbox.setText(
+            self.tr("Save application logs to file for troubleshooting")
         )
 
         # Backup
@@ -854,6 +874,7 @@ class SettingsWindow(QWidget):
         self.dim_bg_checkbox.setChecked(self.settings.dim_background)
         self.font_family_combo.setCurrentFont(QFont(self.settings.font_family))
         self.show_animations_checkbox.setChecked(self.settings.show_animations)
+        self.enable_logging_checkbox.setChecked(self.settings.enable_file_logging)
         self.replay_checkbox.setChecked(self.settings.replay_unselected)
         self.long_press_spin.setValue(self.settings.long_press_delay_ms)
         self.auto_scale_checkbox.setChecked(self.settings.auto_scale_with_menu)
@@ -1632,6 +1653,7 @@ class SettingsWindow(QWidget):
         self.settings.dim_background = self.dim_bg_checkbox.isChecked()
         self.settings.font_family = self.font_family_combo.currentFont().family()
         self.settings.show_animations = self.show_animations_checkbox.isChecked()
+        self.settings.enable_file_logging = self.enable_logging_checkbox.isChecked()
         self.settings.replay_unselected = self.replay_checkbox.isChecked()
         self.settings.long_press_delay_ms = self.long_press_spin.value()
         self.settings.auto_scale_with_menu = self.auto_scale_checkbox.isChecked()
