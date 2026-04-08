@@ -1020,6 +1020,21 @@ Icon</source>
             <translation>メニューを表示するまでの待機時間(ミリ秒)。0で即時表示。</translation>
         </message>
         <message>
+            <location filename="../../src/ui/settings_ui.py" line="681" />
+            <source>Logging</source>
+            <translation>ログ設定</translation>
+        </message>
+        <message>
+            <location filename="../../src/ui/settings_ui.py" line="682" />
+            <source>File Logging:</source>
+            <translation>ファイルログ出力:</translation>
+        </message>
+        <message>
+            <location filename="../../src/ui/settings_ui.py" line="684" />
+            <source>Save application logs to file for troubleshooting</source>
+            <translation>トラブルシューティングのためにアプリケーションログをファイルに保存する</translation>
+        </message>
+        <message>
             <location filename="../../src/ui/settings_ui.py" line="634" />
             <source>Backup &amp; Restore</source>
             <translation>バックアップと復元</translation>
