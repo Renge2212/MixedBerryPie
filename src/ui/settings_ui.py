@@ -30,6 +30,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QStyle,
     QTabWidget,
     QVBoxLayout,
     QWidget,
@@ -185,8 +186,26 @@ class SettingsWindow(QWidget):
         self.trigger_input.textChanged.connect(self.set_dirty)
         self.trigger_input.recording_toggled.connect(self.hook_control)
 
+        self.btn_clear_trigger = QPushButton()
+        self.btn_clear_trigger.setFixedSize(28, 28)
+        self.btn_clear_trigger.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_clear_trigger.setToolTip(self.tr("Clear trigger key"))
+        style = self.style()
+        assert style is not None
+        self.btn_clear_trigger.setIcon(
+            style.standardIcon(QStyle.StandardPixmap.SP_LineEditClearButton)
+        )
+        self.btn_clear_trigger.clicked.connect(self.clear_trigger_key)
+
+        trigger_input_layout = QHBoxLayout()
+        trigger_input_layout.setContentsMargins(0, 0, 0, 0)
+        trigger_input_layout.addWidget(self.trigger_input, 1)
+        trigger_input_layout.addWidget(self.btn_clear_trigger)
+        trigger_input_widget = QWidget()
+        trigger_input_widget.setLayout(trigger_input_layout)
+
         self.lbl_global_hotkey = QLabel()
-        trigger_layout.addRow(self.lbl_global_hotkey, self.trigger_input)
+        trigger_layout.addRow(self.lbl_global_hotkey, trigger_input_widget)
 
         # Target Apps Container
         self.target_apps_container = QFrame()
@@ -1116,6 +1135,10 @@ class SettingsWindow(QWidget):
         if self.current_profile_idx != -1:
             self.profiles[self.current_profile_idx].trigger_key = text
 
+    def clear_trigger_key(self):
+        self.trigger_input.setText("")
+        self.set_dirty()
+
     def add_profile(self, default_name=None):
         name, ok = QInputDialog.getText(
             self,
@@ -1672,14 +1695,9 @@ class SettingsWindow(QWidget):
         # Validate all profiles before saving
         seen_keys: dict[str, str] = {}
         for profile in self.profiles:
+            # Skip validation for profiles without a trigger key (inactive profiles)
             if not profile.trigger_key:
-                QMessageBox.warning(
-                    self,
-                    "入力エラー",
-                    f"プロファイル '{profile.name}' のトリガーキーが空です。設定してください。",
-                )
-                self.profile_list.setCurrentRow(self.profiles.index(profile))
-                return False
+                continue
 
             if profile.trigger_key in seen_keys:
                 QMessageBox.warning(

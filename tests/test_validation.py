@@ -65,24 +65,23 @@ def test_no_conflict_different_key(validation_setup):
     dialog.accept.assert_called_once()
 
 
-def test_settings_validation_empty_trigger(qapp):
-    """Test that SettingsWindow prevents saving if a profile has no trigger key"""
+def test_settings_validation_empty_trigger_allowed(qapp):
+    """Test that SettingsWindow allows saving a profile with no trigger key (inactive profile)"""
     with (
-        patch("src.ui.settings_ui.QMessageBox") as mock_msgbox,
         patch("src.core.config.load_config") as mock_load,
+        patch("src.core.config.save_config", return_value=True),
     ):
         # Setup data: One profile has empty trigger
         p1 = MenuProfile(name="Empty", trigger_key="", items=[])
         mock_load.return_value = ([p1], AppSettings())
 
-        window = SettingsWindow(on_save_callback=lambda: None)
+        callback = MagicMock()
+        window = SettingsWindow(on_save_callback=callback)
 
-        # Try to save
+        # Try to save - should succeed without warning
         result = window._save_internal()
 
-        assert result is False
-        mock_msgbox.warning.assert_called()
-        assert "トリガーキーが空です" in str(mock_msgbox.warning.call_args)
+        assert result is True
 
 
 def test_settings_validation_duplicate_trigger(qapp):

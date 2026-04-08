@@ -87,7 +87,7 @@ class MixedBerryPieApp(QObject):
         self.is_menu_visible = False
 
         # Start Hook for all profiles
-        trigger_keys = [p.trigger_key for p in self.profiles]
+        trigger_keys = [p.trigger_key for p in self.profiles if p.trigger_key]
         self.hook_manager.start_hook(trigger_keys)
         app_logger.info("Application initialized successfully")
 
