@@ -18,6 +18,7 @@ from typing import Any, ClassVar
 from pynput import keyboard as pynput_keyboard
 
 from src.core.logger import get_logger
+from src.core.win32_input import MAGIC_EXTRA_INFO, send_pynput_key_safely
 
 logger = get_logger(__name__)
 
@@ -190,8 +191,6 @@ if _sys.platform == "win32":
             if n_code == HC_ACTION:
                 kb_struct = ctypes.cast(l_param, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
 
-                from src.core.win32_input import MAGIC_EXTRA_INFO
-
                 # Extract the dwExtraInfo value safely
                 extra_info = kb_struct.dwExtraInfo
                 is_our_event = False
@@ -354,7 +353,6 @@ class HookManager:
             "shift": pynput_keyboard.Key.shift,
             "windows": pynput_keyboard.Key.cmd,
         }
-        from src.core.win32_input import send_pynput_key_safely
 
         for mod_name in held:
             key = mod_to_pynput.get(mod_name)
@@ -536,8 +534,6 @@ class HookManager:
 
     def _replay_key(self, key_name: str) -> None:
         """Replay a key press+release using the custom injector."""
-        from src.core.win32_input import send_pynput_key_safely
-
         try:
             key = _parse_key(key_name)
             send_pynput_key_safely(key, True)  # Press

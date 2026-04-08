@@ -8,7 +8,9 @@ Provides the visual pie menu interface with:
 - Color-coded menu items
 """
 
+import ctypes
 import math
+import sys
 from typing import Any
 
 from PyQt6.QtCore import QPoint, Qt, QTimer, pyqtSignal
@@ -24,7 +26,7 @@ from PyQt6.QtWidgets import QApplication, QWidget
 
 from src.core.config import AppSettings, PieSlice
 from src.core.logger import get_logger
-from src.ui.components.pie_renderer import PieRenderMixin
+from src.ui.components.pie_renderer import MAX_FAN_SPAN_DEG, PieRenderMixin
 
 logger = get_logger(__name__)
 
@@ -197,6 +199,27 @@ class PieOverlay(QWidget, PieRenderMixin):
         if not self.isVisible():
             self.show()
 
+        # Force the window to the topmost Z-order position.
+        # WindowStaysOnTopHint can lose effect over time on Windows when other
+        # topmost windows shuffle the Z-order. Re-apply via Win32 SetWindowPos.
+        self.raise_()
+        if sys.platform == "win32":
+            hwnd = int(self.winId())
+            hwnd_topmost = -1
+            swp_nomove = 0x0002
+            swp_nosize = 0x0001
+            swp_noactivate = 0x0010
+            swp_showwindow = 0x0040
+            ctypes.windll.user32.SetWindowPos(
+                hwnd,
+                hwnd_topmost,
+                0,
+                0,
+                0,
+                0,
+                swp_nomove | swp_nosize | swp_noactivate | swp_showwindow,
+            )
+
         # Trigger a Qt paint event
         self.update()
 
@@ -267,6 +290,59 @@ class PieOverlay(QWidget, PieRenderMixin):
         self.update_selection(event.pos())
         self.update()
 
+    def _calc_polar(self, pos) -> tuple[float, float]:
+        """Convert mouse position to (distance, adjusted_degrees) from center.
+
+        Returns adjusted degrees where 0 = Up, increasing clockwise.
+        """
+        dx = pos.x() - self.center_pos.x()
+        dy = pos.y() - self.center_pos.y()
+        distance = math.sqrt(dx * dx + dy * dy)
+        angle = math.atan2(dy, dx)
+        if angle < 0:
+            angle += 2 * math.pi
+        adj_degrees = (math.degrees(angle) + 90) % 360
+        return distance, adj_degrees
+
+    def _determine_target_layer(self, distance: float) -> int:
+        """Determine the deepest pie layer the cursor is over based on distance."""
+        if distance <= self.radius_outer:
+            return 0
+        return 1 + int((distance - self.radius_outer) / (self.ring_thickness + self.ring_gap))
+
+    def _is_within_fan(
+        self, adj_degrees: float, center_angle: float, fan_span: float
+    ) -> tuple[bool, float]:
+        """Check if adj_degrees falls within a fan centered at center_angle.
+
+        Returns (is_within, relative_angle_within_fan).
+        """
+        s_adj = (center_angle - fan_span / 2 + 90) % 360
+        r_angle = (adj_degrees - s_adj) % 360
+        if r_angle > 180 and fan_span <= MAX_FAN_SPAN_DEG:
+            r_angle -= 360
+        return (0 <= r_angle <= fan_span), r_angle
+
+    def _should_lock_to_submenu(
+        self,
+        locked_idx: int,
+        items: list[PieSlice],
+        adj_degrees: float,
+        depth: int,
+        path: list[int],
+    ) -> bool:
+        """Check if the cursor is within the locked item's submenu fan."""
+        if locked_idx < 0 or locked_idx >= len(items):
+            return False
+        sub_items = getattr(items[locked_idx], "submenu_items", [])
+        if not sub_items:
+            return False
+        c_angle = self._get_slice_center_angle(depth, [*path, locked_idx])
+        sub_count = len(sub_items)
+        fan_span = (MAX_FAN_SPAN_DEG / max(1, sub_count)) * sub_count
+        within, _ = self._is_within_fan(adj_degrees, c_angle, fan_span)
+        return within
+
     def update_selection(self, pos):
         """Update selected item based on mouse position.
 
@@ -276,11 +352,9 @@ class PieOverlay(QWidget, PieRenderMixin):
         if not self.is_visible or not self.menu_items:
             return
 
-        dx = pos.x() - self.center_pos.x()
-        dy = pos.y() - self.center_pos.y()
-        distance = math.sqrt(dx * dx + dy * dy)
+        distance, adj_degrees = self._calc_polar(pos)
 
-        # Dead zone: inside the inner ring → clear selection
+        # Dead zone: inside the inner ring
         if distance < self.radius_inner:
             if getattr(self, "_is_in_center", False) is False:
                 self._is_in_center = True
@@ -292,27 +366,7 @@ class PieOverlay(QWidget, PieRenderMixin):
             self._is_in_center = False
             self.center_exited.emit()
 
-        # Calculate angle
-        angle = math.atan2(dy, dx)
-        if angle < 0:
-            angle += 2 * math.pi
-
-        # Convert to degrees (0-360)
-        degrees = math.degrees(angle)
-        # Adjust degrees so 0 is Up to match drawing logic
-        adj_degrees = (degrees + 90) % 360
-
-        # Determine how deep we are based on distance
-        # Layer 0: radius_inner to radius_outer
-        # Layer 1: radius_outer to radius_outer + 1*ring_thickness
-        # Layer 2: radius_outer + 1*ring_thickness to radius_outer + 2*ring_thickness ...
-
-        # Base target layer determined by raw distance
-        raw_target_layer = 0
-        if distance > self.radius_outer:
-            raw_target_layer = 1 + int(
-                (distance - self.radius_outer) / (self.ring_thickness + self.ring_gap)
-            )
+        raw_target_layer = self._determine_target_layer(distance)
 
         new_path: list[int] = []
         current_items = self.menu_items
@@ -322,117 +376,40 @@ class PieOverlay(QWidget, PieRenderMixin):
                 break
 
             num_items = len(current_items)
-            angle_span = 360.0 / num_items if layer == 0 else 180.0 / max(1, num_items)
+            angle_span = 360.0 / num_items if layer == 0 else MAX_FAN_SPAN_DEG / max(1, num_items)
 
             if layer == 0:
                 hover_idx = int((adj_degrees + angle_span / 2) / angle_span) % num_items
-
                 locked_idx = self.active_path[0] if len(self.active_path) > 0 else -1
-                use_lock = False
-
-                if locked_idx != -1 and locked_idx < num_items and raw_target_layer > 0:
-                    locked_item = current_items[locked_idx]
-                    sub_items = getattr(locked_item, "submenu_items", [])
-                    if sub_items:
-                        c_angle = self._get_slice_center_angle(0, [locked_idx])
-                        sub_count = len(sub_items)
-                        t_span = (180.0 / max(1, sub_count)) * sub_count
-                        s_angle = c_angle - (t_span / 2)
-                        s_adj = (s_angle + 90) % 360
-                        r_angle = (adj_degrees - s_adj) % 360
-                        if r_angle > 180 and t_span <= 180:
-                            r_angle -= 360
-                        if 0 <= r_angle <= t_span:
-                            use_lock = True
-
+                use_lock = (
+                    locked_idx != -1
+                    and raw_target_layer > 0
+                    and self._should_lock_to_submenu(locked_idx, current_items, adj_degrees, 0, [])
+                )
                 current_idx = locked_idx if use_lock else hover_idx
             else:
                 c_angle = self._get_slice_center_angle(layer - 1, new_path)
                 t_span = angle_span * num_items
-                s_angle = c_angle - (t_span / 2)
-                s_adj = (s_angle + 90) % 360
-                r_angle = (adj_degrees - s_adj) % 360
-                if r_angle > 180 and t_span <= 180:
-                    r_angle -= 360
+                within, r_angle = self._is_within_fan(adj_degrees, c_angle, t_span)
 
-                if 0 <= r_angle <= t_span:
-                    hover_idx = int(r_angle / angle_span)
-                    if hover_idx >= num_items:
-                        hover_idx = num_items - 1
-                else:
-                    # Cursor is completely outside this fan!
-                    # Stop adding to path, leaving the selection at the parent layer.
-                    break
+                if not within:
+                    break  # Cursor outside this fan — stop at parent layer
 
+                hover_idx = min(int(r_angle / angle_span), num_items - 1)
                 locked_idx = self.active_path[layer] if len(self.active_path) > layer else -1
-                use_lock = False
-
-                if locked_idx != -1 and locked_idx < num_items and raw_target_layer > layer:
-                    locked_item = current_items[locked_idx]
-                    sub_items = getattr(locked_item, "submenu_items", [])
-                    if sub_items:
-                        c_angle_next = self._get_slice_center_angle(layer, [*new_path, locked_idx])
-                        sub_count = len(sub_items)
-                        t_span_next = (180.0 / max(1, sub_count)) * sub_count
-                        s_angle_next = c_angle_next - (t_span_next / 2)
-                        s_adj_next = (s_angle_next + 90) % 360
-                        r_angle_next = (adj_degrees - s_adj_next) % 360
-                        if r_angle_next > 180 and t_span_next <= 180:
-                            r_angle_next -= 360
-                        if 0 <= r_angle_next <= t_span_next:
-                            use_lock = True
-
+                use_lock = (
+                    locked_idx != -1
+                    and raw_target_layer > layer
+                    and self._should_lock_to_submenu(
+                        locked_idx, current_items, adj_degrees, layer, new_path
+                    )
+                )
                 current_idx = locked_idx if use_lock else hover_idx
 
             new_path.append(current_idx)
             current_items = getattr(current_items[current_idx], "submenu_items", [])
 
         self.active_path = new_path
-
-    def _get_slice_center_angle(self, depth: int, path: list[int]) -> float:
-        """Calculate the absolute center angle (in degrees, 0=Up) of a specific slice at depth."""
-        if not path or depth < 0 or depth >= len(path):
-            return 0.0
-
-        # Root layer
-        num_root = len(self.menu_items)
-        if num_root == 0:
-            return 0.0
-        root_span = 360.0 / num_root
-
-        # Center of 0th item starts at -90
-        center = -90.0 + (path[0] * root_span)
-
-        if depth == 0:
-            return center
-
-        # Traverse down manually to calculate offsets
-        current_list = (
-            self.menu_items[path[0]].submenu_items
-            if getattr(self.menu_items[path[0]], "submenu_items", None)
-            else []
-        )
-        for depth_idx in range(1, depth + 1):
-            if not current_list:
-                break
-            num_children = len(current_list)
-            # Fan span logic
-            fan_span = min(180.0, 60.0 * num_children)
-            slice_span = fan_span / num_children
-
-            # The fan is centered exactly on the previous center
-            start_angle = center - (fan_span / 2)
-            # The center of the specific child
-            child_center = start_angle + (path[depth_idx] * slice_span) + (slice_span / 2)
-
-            center = child_center
-            current_list = (
-                current_list[path[depth_idx]].submenu_items
-                if getattr(current_list[path[depth_idx]], "submenu_items", None)
-                else []
-            )
-
-        return center % 360
 
     def paintEvent(self, event):
         """Paint the pie menu.

@@ -172,45 +172,11 @@ class PiePreviewWidget(QWidget, PieRenderMixin):
 
         return r_hole, thickness, gap, max_r
 
-    def _get_slice_center_angle(
-        self,
-        depth: int,  # which level's center angle to compute (0 = root)
-        path: list[int],
-    ) -> float:
-        """Compute the center angle (degrees, 0=Up / Qt convention reversed) of the
-        selected slice at a given depth, mirroring overlay._get_slice_center_angle."""
-        if not self._parent_items_stack or depth >= len(path):
-            return 0.0
-
-        # Root layer: 360° / n, first item centered at -90° (Up)
-        root_items = self._parent_items_stack[0]
-        n_root = len(root_items)
-        if n_root == 0:
-            return 0.0
-        root_span = 360.0 / n_root
-        center = -90.0 + path[0] * root_span
-
-        if depth == 0:
-            return center
-
-        # Traverse submenu levels
-        current_list = (
-            root_items[path[0]].submenu_items if len(path) > 0 and len(root_items) > path[0] else []
-        )
-        for d in range(1, depth + 1):
-            if not current_list or d >= len(path):
-                break
-            n = len(current_list)
-            fan_span = min(180.0, 60.0 * n)
-            slice_span = fan_span / n
-            idx = path[d]
-            start = center - fan_span / 2
-            child_center = start + idx * slice_span + slice_span / 2
-            center = child_center
-            if d < len(path) and idx < len(current_list):
-                current_list = getattr(current_list[idx], "submenu_items", []) or []
-
-        return center % 360
+    def _get_root_items(self) -> list[PieSlice]:
+        """Return root-level items from the parent items stack for angle calculations."""
+        if self._parent_items_stack:
+            return self._parent_items_stack[0]
+        return self.menu_items
 
     # ── paintEvent ─────────────────────────────────────────────────────────
 

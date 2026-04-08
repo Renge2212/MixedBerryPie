@@ -24,6 +24,7 @@ CONFIG_FILE = os.path.join(CONFIG_DIR, "menu_config.json")
 ICON_HISTORY_FILE = os.path.join(CONFIG_DIR, "icon_history.json")
 USER_ICONS_DIR = os.path.join(CONFIG_DIR, "user_icons")
 ICON_HISTORY_MAX = 100
+_HASH_CHUNK_SIZE = 65536  # Chunk size for SHA-256 file hashing (bytes)
 
 
 def _ensure_config_dir() -> None:
@@ -69,6 +70,59 @@ def save_icon_history(paths: list[str]) -> None:
         logger.warning(f"Could not save icon history: {e}")
 
 
+def _hash_file(path: str) -> str:
+    """Compute SHA-256 hash of a file using chunked reads."""
+    sha = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(_HASH_CHUNK_SIZE), b""):
+            sha.update(chunk)
+    return sha.hexdigest()
+
+
+def _find_duplicate_in_dir(directory: str, src_hash: str) -> str | None:
+    """Find an existing file in directory with the same content hash."""
+    for name in os.listdir(directory):
+        file_path = os.path.join(directory, name)
+        if os.path.isfile(file_path):
+            with open(file_path, "rb") as f:
+                if hashlib.sha256(f.read()).hexdigest() == src_hash:
+                    return file_path
+    return None
+
+
+def _copy_with_collision_handling(src: str, dest_dir: str) -> str:
+    """Copy a file to dest_dir, renaming on name collision."""
+    base_name = os.path.basename(src)
+    dest_path = os.path.join(dest_dir, base_name)
+
+    if os.path.exists(dest_path):
+        name, ext = os.path.splitext(base_name)
+        counter = 1
+        while os.path.exists(os.path.join(dest_dir, f"{name}_{counter}{ext}")):
+            counter += 1
+        dest_path = os.path.join(dest_dir, f"{name}_{counter}{ext}")
+
+    if os.path.abspath(src) != os.path.abspath(dest_path):
+        shutil.copy2(src, dest_path)
+        logger.info(f"Assetized icon: {src} -> {dest_path}")
+    return dest_path
+
+
+def _normalize_icon_path(path: str) -> str:
+    """Convert an absolute path inside USER_ICONS_DIR to a relative path."""
+    abs_prefix = os.path.abspath(USER_ICONS_DIR) + os.sep
+    if os.path.abspath(path).startswith(abs_prefix):
+        return os.path.relpath(path, CONFIG_DIR).replace("\\", "/")
+    return path
+
+
+def _icon_path_to_abs(path: str) -> str:
+    """Resolve an icon history entry to an absolute path for comparison."""
+    if not os.path.isabs(path) and path.startswith("user_icons"):
+        return os.path.abspath(os.path.join(CONFIG_DIR, path))
+    return os.path.abspath(path)
+
+
 def add_to_icon_history(path: str) -> list[str]:
     """Assetize icon and prepend to history.
 
@@ -85,69 +139,29 @@ def add_to_icon_history(path: str) -> list[str]:
         return load_icon_history()
 
     _ensure_config_dir()
-    if not os.path.exists(USER_ICONS_DIR):
-        os.makedirs(USER_ICONS_DIR, exist_ok=True)
+    os.makedirs(USER_ICONS_DIR, exist_ok=True)
 
     final_path = path
 
     # If already in USER_ICONS_DIR, no need to copy
-    # Use os.sep suffix to prevent path-traversal false positives (e.g. user_icons_evil/)
-    _user_icons_abs = os.path.abspath(USER_ICONS_DIR) + os.sep
-    if not os.path.abspath(path).startswith(_user_icons_abs):
-        # Copy external icon to user_icons dir
-        base_name = os.path.basename(path)
-        dest_path = os.path.join(USER_ICONS_DIR, base_name)
-
-        # Hashing-based duplicate check (SHA-256) — chunked to avoid OOM on large files
+    abs_prefix = os.path.abspath(USER_ICONS_DIR) + os.sep
+    if not os.path.abspath(path).startswith(abs_prefix):
         try:
-            sha = hashlib.sha256()
-            with open(path, "rb") as bf:
-                for chunk in iter(lambda: bf.read(65536), b""):
-                    sha.update(chunk)
-            src_hash = sha.hexdigest()
-
-            # Check existing files in user_icons
-            for f in os.listdir(USER_ICONS_DIR):
-                f_path = os.path.join(USER_ICONS_DIR, f)
-                if os.path.isfile(f_path):
-                    with open(f_path, "rb") as obf:
-                        if hashlib.sha256(obf.read()).hexdigest() == src_hash:
-                            logger.info(f"Duplicate content found, reusing: {f_path}")
-                            final_path = f_path
-                            break
-
-            if final_path == path:  # Not found in loop
-                # Handle name collisions for different content
-                if os.path.exists(dest_path):
-                    name, ext = os.path.splitext(base_name)
-                    counter = 1
-                    while os.path.exists(os.path.join(USER_ICONS_DIR, f"{name}_{counter}{ext}")):
-                        counter += 1
-                    dest_path = os.path.join(USER_ICONS_DIR, f"{name}_{counter}{ext}")
-
-                if os.path.abspath(path) != os.path.abspath(dest_path):
-                    shutil.copy2(path, dest_path)
-                    logger.info(f"Assetized icon: {path} -> {dest_path}")
-                final_path = dest_path
+            src_hash = _hash_file(path)
+            duplicate = _find_duplicate_in_dir(USER_ICONS_DIR, src_hash)
+            if duplicate:
+                logger.info(f"Duplicate content found, reusing: {duplicate}")
+                final_path = duplicate
+            else:
+                final_path = _copy_with_collision_handling(path, USER_ICONS_DIR)
         except Exception as e:
             logger.error(f"Failed to assetize icon: {e}")
-            # Fallback to original path if copy fails
 
-    history = load_icon_history()
-    # Normalize final_path to relative if it's in USER_ICONS_DIR
-    _user_icons_abs = os.path.abspath(USER_ICONS_DIR) + os.sep
-    if os.path.abspath(final_path).startswith(_user_icons_abs):
-        final_path = os.path.relpath(final_path, CONFIG_DIR).replace("\\", "/")
+    final_path = _normalize_icon_path(final_path)
 
-    # Remove duplicates (comparing absolute paths internally for reliability)
-    def to_abs(p):
-        if not os.path.isabs(p) and p.startswith("user_icons"):
-            return os.path.abspath(os.path.join(CONFIG_DIR, p))
-        return os.path.abspath(p)
-
-    target_abs = to_abs(final_path)
-    history = [p for p in history if to_abs(p) != target_abs]
-
+    # Deduplicate history entries
+    target_abs = _icon_path_to_abs(final_path)
+    history = [p for p in load_icon_history() if _icon_path_to_abs(p) != target_abs]
     history.insert(0, final_path)
     history = history[:ICON_HISTORY_MAX]
     save_icon_history(history)
@@ -300,6 +314,21 @@ DEFAULT_TRIGGER = "ctrl+space"
 DEFAULT_PROFILES = [MenuProfile(name="Default", trigger_key=DEFAULT_TRIGGER, items=DEFAULT_ITEMS)]
 
 
+def _validate_setting_type(value: object, default: object) -> bool:
+    """Validate that a config value matches the expected type of its default.
+
+    Handles the bool/int subclass issue (JSON has no bool distinction from int
+    in Python's isinstance) and validates nested dict/list structures for known
+    complex settings.
+    """
+    # bool must be checked first because bool is a subclass of int
+    if isinstance(default, bool):
+        return isinstance(value, bool)
+    if isinstance(default, int):
+        return isinstance(value, int) and not isinstance(value, bool)
+    return isinstance(value, type(default))
+
+
 def load_config() -> tuple[list[MenuProfile], AppSettings]:
     """Load configuration from file.
 
@@ -340,9 +369,8 @@ def load_config() -> tuple[list[MenuProfile], AppSettings]:
             default_settings = AppSettings()
             for k, v in settings_data.items():
                 if k in AppSettings.__dataclass_fields__:
-                    # Simple type validation against default values
                     default_v = getattr(default_settings, k)
-                    if isinstance(v, type(default_v)):
+                    if _validate_setting_type(v, default_v):
                         valid_fields[k] = v
                     else:
                         logger.warning(

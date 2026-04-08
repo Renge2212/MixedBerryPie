@@ -119,12 +119,64 @@ class SettingsWindow(QWidget):
         self.tabs = QTabWidget()
         content.addWidget(self.tabs)
 
-        # Tab 1: Menu Items
+        menu_tab = self._build_menu_tab()
+        self.tabs.addTab(menu_tab, "")
+        self.menu_tab_idx = self.tabs.indexOf(menu_tab)
+
+        appearance_tab = self._build_appearance_tab()
+        self.tabs.addTab(appearance_tab, "")
+        self.appearance_tab_idx = self.tabs.indexOf(appearance_tab)
+
+        behavior_tab = self._build_behavior_tab()
+        self.tabs.addTab(behavior_tab, "")
+        self.behavior_tab_idx = self.tabs.indexOf(behavior_tab)
+
+        system_tab = self._build_system_tab()
+        self.tabs.addTab(system_tab, "")
+        self.system_tab_idx = self.tabs.indexOf(system_tab)
+
+        # Apply initial visibility
+        self._update_scale_visibility()
+        self._update_color_mode_visibility()
+
+        # Bottom Save Row
+        self.btn_save = QPushButton("Save & Apply")
+        self.btn_save.setFixedHeight(45)
+        self.btn_save.setEnabled(False)  # Initial state is disabled (no changes yet)
+        self._apply_save_btn_style()  # Re-apply style
+        self.btn_save.clicked.connect(self.save_all)  # Connected to save_all
+
+        content.addWidget(self.btn_save)
+
+        self.item_btns_group = [
+            self.btn_add_i,
+            self.btn_edit_i,
+            self.btn_del_i,
+            self.btn_dup_i,
+            self.btn_move_out,
+            self.btn_up,
+            self.btn_down,
+        ]
+        for btn in self.item_btns_group:
+            btn.clicked.connect(self.set_dirty)
+
+        main_layout.addLayout(content, 3)  # Give content 3/4 of width
+        self._apply_theme()  # Apply theme after all widgets are created
+
+        # Connect profile renaming
+        self.profile_list.itemDoubleClicked.connect(self.rename_profile)
+
+        self.retranslateUi()
+        self.load_data()
+
+    # ── Tab builder methods ─────────────────────────────────────────────────
+
+    def _build_menu_tab(self) -> QWidget:
+        """Build the Menu Items tab."""
         menu_tab = QWidget()
         menu_layout = QVBoxLayout()
         menu_tab.setLayout(menu_layout)
 
-        # Trigger Key
         # Trigger Key
         self.group_trigger = QGroupBox()
         trigger_layout = QFormLayout()
@@ -148,7 +200,6 @@ class SettingsWindow(QWidget):
         self.btn_pick_app.setFixedSize(28, 28)
         self.btn_pick_app.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        # Perfection alignment: Use a label inside the button's layout
         btn_inner_layout = QHBoxLayout(self.btn_pick_app)
         btn_inner_layout.setContentsMargins(0, 0, 0, 0)
         self.btn_pick_label = QLabel("+")
@@ -176,7 +227,7 @@ class SettingsWindow(QWidget):
 
         # Breadcrumb navigation for submenus
         self.breadcrumb_layout = QHBoxLayout()
-        self.btn_nav_up = QPushButton("⬆ Back")
+        self.btn_nav_up = QPushButton("\u2b06 Back")
         self.btn_nav_up.clicked.connect(self.navigate_up)
         self.btn_nav_up.setVisible(False)
         self.btn_nav_up.setAcceptDrops(True)
@@ -230,10 +281,10 @@ class SettingsWindow(QWidget):
         self.btn_move_out.setVisible(False)
 
         btn_reorder = QHBoxLayout()
-        self.btn_up = QPushButton("↑")
+        self.btn_up = QPushButton("\u2191")
         self.btn_up.setFixedWidth(40)
         self.btn_up.clicked.connect(self.move_up)
-        self.btn_down = QPushButton("↓")
+        self.btn_down = QPushButton("\u2193")
         self.btn_down.setFixedWidth(40)
         self.btn_down.clicked.connect(self.move_down)
         btn_reorder.addWidget(self.btn_up)
@@ -261,55 +312,21 @@ class SettingsWindow(QWidget):
         self.preview_widget.update_unified_color(
             self.settings.color_mode, self.settings.unified_color, self.settings.selected_preset
         )
-        # Allow the preview widget to expand and fill the available space
         preview_layout.addWidget(self.preview_widget, 1)
         self.preview_group.setLayout(preview_layout)
         items_h_layout.addWidget(self.preview_group, 1)
 
         menu_layout.addLayout(items_h_layout)
+        return menu_tab
 
-        self.tabs.addTab(menu_tab, "")
-        self.menu_tab_idx = self.tabs.indexOf(menu_tab)
-
-        # Tab 2: Appearance
+    def _build_appearance_tab(self) -> QWidget:
+        """Build the Appearance tab with display settings and live preview."""
         appearance_tab = QWidget()
-        appearance_layout = QHBoxLayout()  # Side-by-side: settings on left, preview on right
+        appearance_layout = QHBoxLayout()
         appearance_layout.setSpacing(10)
         appearance_tab.setLayout(appearance_layout)
-        appearance_settings_layout = QVBoxLayout()  # Settings form column
+        appearance_settings_layout = QVBoxLayout()
 
-        # Tab 3: Behavior
-        behavior_tab = QWidget()
-        behavior_layout = QVBoxLayout()
-        behavior_layout.setSpacing(10)
-        behavior_tab.setLayout(behavior_layout)
-
-        # Tab 4: System
-        system_tab = QWidget()
-        system_layout = QVBoxLayout()
-        system_layout.setSpacing(10)
-        system_tab.setLayout(system_layout)
-
-        # ── Group 1: 言語 ─────────────────────────────────────────
-        self.group_language = QGroupBox()
-        lang_form = QFormLayout()
-
-        self.lbl_language = QLabel()
-        self.combo_language = QComboBox()
-        self.combo_language.addItem("Auto", "auto")
-        self.combo_language.addItem("English", "en")
-        self.combo_language.addItem("日本語", "ja")
-        idx = self.combo_language.findData(self.settings.language)
-        if idx >= 0:
-            self.combo_language.setCurrentIndex(idx)
-        self.combo_language.currentIndexChanged.connect(self.on_language_changed)
-        self.combo_language.currentIndexChanged.connect(self.set_dirty)
-        lang_form.addRow(self.lbl_language, self.combo_language)
-
-        self.group_language.setLayout(lang_form)
-        system_layout.addWidget(self.group_language)
-
-        # ── Group 2: 表示 ─────────────────────────────────────────
         self.group_adv = QGroupBox()
         adv_form = QFormLayout()
 
@@ -330,11 +347,10 @@ class SettingsWindow(QWidget):
         self.menu_opacity_slider.setValue(self.settings.menu_opacity)
         self.menu_opacity_slider.value_changed.connect(self.set_dirty)
         self.menu_opacity_slider.value_changed.connect(self.preview_widget.update_opacity)
-        # Also update appearance tab preview (widget created later; connected after)
         self.menu_opacity_slider.value_changed.connect(self._update_appearance_preview_opacity)
         adv_form.addRow(self.lbl_menu_opacity, self.menu_opacity_slider)
 
-        # Auto-scale (placed right after menu opacity)
+        # Auto-scale
         self.lbl_auto_scale = QLabel()
         self.auto_scale_checkbox = QCheckBox()
         self.auto_scale_checkbox.setChecked(self.settings.auto_scale_with_menu)
@@ -405,7 +421,6 @@ class SettingsWindow(QWidget):
         self._update_unified_color_btn_style()
 
         # Preset Picker (Sub-option)
-
         self.preset_visual = ColorStripWidget()
         self.btn_manage_presets = QPushButton()
         self.btn_manage_presets.clicked.connect(self.manage_presets)
@@ -441,7 +456,7 @@ class SettingsWindow(QWidget):
         self.font_family_combo.currentFontChanged.connect(lambda _: self._update_preview_fonts())
         adv_form.addRow(self.lbl_font_family, self.font_family_combo)
 
-        # Animations (Moved to Appearance)
+        # Animations
         self.lbl_show_animations = QLabel()
         self.show_animations_checkbox = QCheckBox()
         self.show_animations_checkbox.setChecked(self.settings.show_animations)
@@ -471,12 +486,19 @@ class SettingsWindow(QWidget):
 
         appearance_layout.addLayout(appearance_settings_layout, 1)
         appearance_layout.addWidget(self.appearance_preview_group, 1)
+        return appearance_tab
 
-        # ── Group 3: 動作 ─────────────────────────────────────────
+    def _build_behavior_tab(self) -> QWidget:
+        """Build the Behavior tab with action and trigger settings."""
+        behavior_tab = QWidget()
+        behavior_layout = QVBoxLayout()
+        behavior_layout.setSpacing(10)
+        behavior_tab.setLayout(behavior_layout)
+
+        # Action/Key delays
         self.group_behavior = QGroupBox()
         behavior_form = QFormLayout()
 
-        # Action delay
         self.lbl_action_delay = QLabel()
         self.action_delay_spin = SteppedSlider(
             steps=[0, 10, 30, 50, 80, 100, 150, 200, 300, 500], suffix="ms"
@@ -485,7 +507,6 @@ class SettingsWindow(QWidget):
         self.action_delay_spin.value_changed.connect(self.set_dirty)
         behavior_form.addRow(self.lbl_action_delay, self.action_delay_spin)
 
-        # Key sequence delay
         self.lbl_key_delay = QLabel()
         self.key_delay_spin = SteppedSlider(steps=[0, 10, 20, 50, 100], suffix="ms")
         self.key_delay_spin.setValue(self.settings.key_sequence_delay_ms)
@@ -495,7 +516,7 @@ class SettingsWindow(QWidget):
         self.group_behavior.setLayout(behavior_form)
         behavior_layout.addWidget(self.group_behavior)
 
-        # ── Group 4: トリガー動作 ─────────────────────────────────
+        # Trigger behavior
         self.group_trigger_behavior = QGroupBox()
         trigger_behavior_layout = QFormLayout()
 
@@ -515,8 +536,35 @@ class SettingsWindow(QWidget):
         self.group_trigger_behavior.setLayout(trigger_behavior_layout)
         behavior_layout.addWidget(self.group_trigger_behavior)
         behavior_layout.addStretch()
+        return behavior_tab
 
-        # ── Group 5: ログ設定 ─────────────────────────────────
+    def _build_system_tab(self) -> QWidget:
+        """Build the System tab with language, logging, and backup settings."""
+        system_tab = QWidget()
+        system_layout = QVBoxLayout()
+        system_layout.setSpacing(10)
+        system_tab.setLayout(system_layout)
+
+        # Language
+        self.group_language = QGroupBox()
+        lang_form = QFormLayout()
+
+        self.lbl_language = QLabel()
+        self.combo_language = QComboBox()
+        self.combo_language.addItem("Auto", "auto")
+        self.combo_language.addItem("English", "en")
+        self.combo_language.addItem("\u65e5\u672c\u8a9e", "ja")
+        idx = self.combo_language.findData(self.settings.language)
+        if idx >= 0:
+            self.combo_language.setCurrentIndex(idx)
+        self.combo_language.currentIndexChanged.connect(self.on_language_changed)
+        self.combo_language.currentIndexChanged.connect(self.set_dirty)
+        lang_form.addRow(self.lbl_language, self.combo_language)
+
+        self.group_language.setLayout(lang_form)
+        system_layout.addWidget(self.group_language)
+
+        # Logging
         self.group_logging = QGroupBox()
         logging_layout = QFormLayout()
 
@@ -529,7 +577,7 @@ class SettingsWindow(QWidget):
         self.group_logging.setLayout(logging_layout)
         system_layout.addWidget(self.group_logging)
 
-        # ── Group 6: バックアップ ─────────────────────────────────
+        # Backup
         self.group_backup = QGroupBox()
         backup_layout = QHBoxLayout()
 
@@ -543,49 +591,7 @@ class SettingsWindow(QWidget):
         self.group_backup.setLayout(backup_layout)
         system_layout.addWidget(self.group_backup)
         system_layout.addStretch()
-
-        self.tabs.addTab(appearance_tab, "")
-        self.appearance_tab_idx = self.tabs.indexOf(appearance_tab)
-
-        self.tabs.addTab(behavior_tab, "")
-        self.behavior_tab_idx = self.tabs.indexOf(behavior_tab)
-
-        self.tabs.addTab(system_tab, "")
-        self.system_tab_idx = self.tabs.indexOf(system_tab)
-
-        # Apply initial visibility
-        self._update_scale_visibility()
-        self._update_color_mode_visibility()
-
-        # Bottom Save Row
-        self.btn_save = QPushButton("Save & Apply")
-        self.btn_save.setFixedHeight(45)
-        self.btn_save.setEnabled(False)  # Initial state is disabled (no changes yet)
-        self._apply_save_btn_style()  # Re-apply style
-        self.btn_save.clicked.connect(self.save_all)  # Connected to save_all
-
-        content.addWidget(self.btn_save)
-
-        self.item_btns_group = [
-            self.btn_add_i,
-            self.btn_edit_i,
-            self.btn_del_i,
-            self.btn_dup_i,
-            self.btn_move_out,
-            self.btn_up,
-            self.btn_down,
-        ]
-        for btn in self.item_btns_group:
-            btn.clicked.connect(self.set_dirty)
-
-        main_layout.addLayout(content, 3)  # Give content 3/4 of width
-        self._apply_theme()  # Apply theme after all widgets are created
-
-        # Connect profile renaming
-        self.profile_list.itemDoubleClicked.connect(self.rename_profile)
-
-        self.retranslateUi()
-        self.load_data()
+        return system_tab
 
     def retranslateUi(self):
         self.setWindowTitle(self.tr("MixedBerryPie Settings"))

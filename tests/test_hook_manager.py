@@ -206,7 +206,7 @@ def test_handle_release_not_consumed_replays():
 def test_release_all_modifiers():
     mgr, _, _ = make_manager()
     mgr._held_modifiers = {"ctrl", "shift"}
-    with patch("src.core.win32_input.send_pynput_key_safely") as mock_release:
+    with patch("src.core.hook_manager.send_pynput_key_safely") as mock_release:
         mgr.release_all_modifiers()
     assert mock_release.call_count == 2
 

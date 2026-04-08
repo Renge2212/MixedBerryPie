@@ -11,16 +11,20 @@ from PyQt6.QtGui import (
     QBrush,
     QColor,
     QFont,
-    QIcon,
     QPainter,
     QPainterPath,
     QPen,
     QPixmap,
 )
-from PyQt6.QtSvg import QSvgRenderer
 
 from src.core.config import COLOR_PRESETS, AppSettings, PieSlice
 from src.core.utils import resolve_icon_path
+from src.ui.components.custom_widgets import _render_icon_pixmap
+
+# ── Angle constants for pie layout ────────────────────────────────────────────
+MAX_FAN_SPAN_DEG = 180.0  # Maximum angular span for a submenu fan (degrees)
+FAN_SPAN_PER_ITEM_DEG = 60.0  # Angular span allocated per submenu child (degrees)
+ROOT_START_ANGLE_DEG = -90.0  # Root layer: first item centered at "Up" (degrees)
 
 
 class PieRenderMixin:
@@ -37,8 +41,47 @@ class PieRenderMixin:
     _icon_cache: dict[tuple[str, int], Any]
     _item_font: QFont | None
 
+    def _get_root_items(self) -> list[PieSlice]:
+        """Return the root-level menu items for angle calculations.
+
+        Subclasses must override if the root items differ from self.menu_items
+        (e.g. PiePreviewWidget uses _parent_items_stack[0]).
+        """
+        return getattr(self, "menu_items", [])
+
     def _get_slice_center_angle(self, depth: int, path: list[int]) -> float:
-        raise NotImplementedError
+        """Calculate the absolute center angle (degrees, 0=Up) of a slice at depth.
+
+        Works by traversing from root through submenu levels, computing
+        each level's fan span and child center angle.
+        """
+        root_items = self._get_root_items()
+        if not root_items or not path or depth < 0 or depth >= len(path):
+            return 0.0
+
+        num_root = len(root_items)
+        if num_root == 0:
+            return 0.0
+        root_span = 360.0 / num_root
+        center = ROOT_START_ANGLE_DEG + (path[0] * root_span)
+
+        if depth == 0:
+            return center
+
+        current_list = getattr(root_items[path[0]], "submenu_items", None) or []
+        for d in range(1, depth + 1):
+            if not current_list or d >= len(path):
+                break
+            n = len(current_list)
+            fan_span = min(MAX_FAN_SPAN_DEG, FAN_SPAN_PER_ITEM_DEG * n)
+            slice_span = fan_span / n
+            idx = path[d]
+            start = center - fan_span / 2
+            center = start + idx * slice_span + slice_span / 2
+            if idx < len(current_list):
+                current_list = getattr(current_list[idx], "submenu_items", None) or []
+
+        return center % 360
 
     def _draw_layer(
         self,
@@ -55,11 +98,15 @@ class PieRenderMixin:
 
         num_items = len(items)
         # Root is 360, children fan out up to 180 depending on count
-        angle_span = 360.0 / num_items if depth == 0 else min(180.0, 60.0 * num_items) / num_items
+        angle_span = (
+            360.0 / num_items
+            if depth == 0
+            else min(MAX_FAN_SPAN_DEG, FAN_SPAN_PER_ITEM_DEG * num_items) / num_items
+        )
 
         # Calculate start angle for this layer
         if depth == 0:
-            start_angle_base = -90 - (angle_span / 2)  # First item centered at -90 (Up)
+            start_angle_base = ROOT_START_ANGLE_DEG - (angle_span / 2)
         else:
             center_angle_of_parent = self._get_slice_center_angle(depth - 1, path)
             total_fan_span = angle_span * num_items
@@ -273,23 +320,9 @@ class PieRenderMixin:
 
         cache_key = (resolved_path, icon_size)
 
-        if resolved_path.lower().endswith(".svg"):
-            if cache_key not in self._icon_cache:
-                pixmap = QPixmap(icon_size, icon_size)
-                pixmap.fill(Qt.GlobalColor.transparent)
-                renderer = QSvgRenderer(resolved_path)
-                if renderer.isValid():
-                    svg_painter = QPainter(pixmap)
-                    svg_painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-                    svg_painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-                    renderer.render(svg_painter)
-                    svg_painter.end()
-                    self._icon_cache[cache_key] = pixmap
-                else:
-                    self._icon_cache[cache_key] = QPixmap()
-        elif cache_key not in self._icon_cache:
-            pixmap = QIcon(resolved_path).pixmap(int(icon_size), int(icon_size))
-            self._icon_cache[cache_key] = pixmap
+        if cache_key not in self._icon_cache:
+            rendered = _render_icon_pixmap(resolved_path, icon_size)
+            self._icon_cache[cache_key] = rendered if rendered else QPixmap()
 
         pixmap = self._icon_cache[cache_key]
         if not pixmap.isNull():

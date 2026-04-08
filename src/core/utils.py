@@ -111,5 +111,5 @@ def resolve_icon_path(path: str) -> str | None:
             if basename in files:
                 return os.path.join(root, basename)
 
-    # Return original if resolution fails (it might be an absolute path that doesn't exist yet)
-    return path
+    # All resolution strategies failed
+    return None

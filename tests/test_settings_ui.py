@@ -128,15 +128,15 @@ def test_item_editor_submenu_mode(qapp):
 
     dialog = ItemEditorDialog(item=None, all_profiles=test_profiles)
 
-    # Check if submenu is added to action type combo
-    action_types = [
-        dialog.action_type_combo.itemText(i) for i in range(dialog.action_type_combo.count())
+    # Verify submenu action type exists (using internal data, not translated text)
+    action_data = [
+        dialog.action_type_combo.itemData(i) for i in range(dialog.action_type_combo.count())
     ]
-    if "submenu" not in action_types:
-        pytest.skip("submenu action type not yet added to ItemEditorDialog")
+    assert "submenu" in action_data
 
-    # Set to submenu
-    dialog.action_type_combo.setCurrentText("submenu")
+    # Set to submenu via data index
+    idx = dialog.action_type_combo.findData("submenu")
+    dialog.action_type_combo.setCurrentIndex(idx)
 
     # The key_edit should be hidden
     assert dialog.key_edit.isHidden() is True

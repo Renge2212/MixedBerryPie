@@ -291,9 +291,6 @@ def test_center_hover_signals(overlay_setup):
     overlay, _, _ = overlay_setup
     overlay.center_pos = QPoint(250, 250)
 
-    if not hasattr(overlay, "center_hovered"):
-        pytest.skip("center_hovered signal not yet implemented")
-
     signals = []
     overlay.center_hovered.connect(lambda: signals.append("hovered"))
     overlay.center_exited.connect(lambda: signals.append("exited"))
