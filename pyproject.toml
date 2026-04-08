@@ -1,6 +1,6 @@
 [project]
 name = "mixedberrypie"
-version = "1.4.1"
+version = "1.5.0"
 description = "A sleek, customizable radial pie menu for quick keyboard shortcuts on Windows."
 authors = [
     {name = "Renge2212"}
