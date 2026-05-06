@@ -80,3 +80,26 @@ feat(ui): add new color picker for menu items
 fix(core): resolve keyboard hook conflict with admin apps
 docs: update installation guide
 ```
+
+## 🔢 Versioning Policy
+
+This project follows **Semantic Versioning** (https://semver.org). The version in `pyproject.toml` reflects what users receive — it is a contract with the outside world, not a changelog of every commit.
+
+### Bump the version when
+
+End-user behavior changes:
+
+*   **MAJOR** (`x.0.0`): breaking changes (incompatible config, removed features, behavior users must adapt to)
+*   **MINOR** (`1.x.0`): new user-visible features (additive, backward compatible)
+*   **PATCH** (`1.5.x`): bug fixes or security patches that affect runtime behavior
+
+### Do NOT bump for
+
+Internal-only changes that do not alter what users get:
+
+*   Updates to `[dependency-groups] dev` (linters, formatters, type stubs, test tools, security scanners)
+*   CI / pre-commit / GitHub Actions changes
+*   Tests, docs, refactors with no behavior change
+*   Updates to production dependencies that do not change runtime behavior
+
+When in doubt: would a user reading the changelog care? If no, do not bump.
