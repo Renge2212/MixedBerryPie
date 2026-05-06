@@ -380,19 +380,19 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "bandit", specifier = ">=1.8.0" },
+    { name = "bandit", specifier = ">=1.9.4" },
     { name = "defusedxml", specifier = ">=0.7.1" },
     { name = "mypy", specifier = ">=1.8.0" },
     { name = "pillow", specifier = ">=10.2.0" },
-    { name = "pip-audit", specifier = ">=2.7.0" },
+    { name = "pip-audit", specifier = ">=2.10.0" },
     { name = "pre-commit", specifier = ">=3.0.0" },
     { name = "pyinstaller", specifier = ">=6.4.0" },
     { name = "pyside6", specifier = ">=6.10.2" },
     { name = "pytest", specifier = ">=7.0.0" },
     { name = "ruff", specifier = ">=0.1.0" },
-    { name = "types-defusedxml", specifier = ">=0.7.0.20250822" },
-    { name = "types-pillow", specifier = ">=10.2.0.20240213" },
-    { name = "types-pynput", specifier = ">=1.8.1.20250809" },
+    { name = "types-defusedxml", specifier = ">=0.7.0.20260408" },
+    { name = "types-pillow", specifier = ">=10.2.0.20240822" },
+    { name = "types-pynput", specifier = ">=1.8.1.20260408" },
     { name = "vulture", specifier = ">=2.14" },
     { name = "xenon", specifier = ">=0.9.3" },
 ]
@@ -3819,11 +3819,11 @@ wheels = [
 
 [[package]]
 name = "types-defusedxml"
-version = "0.7.0.20250822"
+version = "0.7.0.20260504"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/7d/4a/5b997ae87bf301d1796f72637baa4e0e10d7db17704a8a71878a9f77f0c0/types_defusedxml-0.7.0.20250822.tar.gz", hash = "sha256:ba6c395105f800c973bba8a25e41b215483e55ec79c8ca82b6fe90ba0bc3f8b2", size = 10590, upload-time = "2025-08-22T03:02:59.547Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/da/d2/4553c8fa9cdebfe1e84b950cf790a4d2376a97fa016e43f7c65323fa6c7d/types_defusedxml-0.7.0.20260504.tar.gz", hash = "sha256:2ab2828a3f97111ba1c16cee273ad4124a831fc9198c41bf8368ff6ea48ad300", size = 10729, upload-time = "2026-05-04T05:22:50.192Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/13/73/8a36998cee9d7c9702ed64a31f0866c7f192ecffc22771d44dbcc7878f18/types_defusedxml-0.7.0.20250822-py3-none-any.whl", hash = "sha256:5ee219f8a9a79c184773599ad216123aedc62a969533ec36737ec98601f20dcf", size = 13430, upload-time = "2025-08-22T03:02:58.466Z" },
+    { url = "https://files.pythonhosted.org/packages/bf/2d/8a4b5ba1d732b8bc691f0efbb1c6f77cb5f6f473b2afe181d83d910773c5/types_defusedxml-0.7.0.20260504-py3-none-any.whl", hash = "sha256:a959e3a0a43b93e464bd625d91ec9193a2703ddc10443bdd627792485fae0b10", size = 13467, upload-time = "2026-05-04T05:22:49.319Z" },
 ]
 
 [[package]]
@@ -3837,11 +3837,11 @@ wheels = [
 
 [[package]]
 name = "types-pynput"
-version = "1.8.1.20250809"
+version = "1.8.1.20260408"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/38/ae/9d630d3e164f7d7fc24dbb97a2d80cbd089c0c592cc93f698fe347428865/types_pynput-1.8.1.20250809.tar.gz", hash = "sha256:c315e4c3bae4c23a94a12b677f1e0bb5611c4a7b114ce09cc870d9b8335e95eb", size = 11683, upload-time = "2025-08-09T03:15:35.701Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/75/1e/4016c6427ad1ded99486787223bec59dd068d19e47c9de1b5015658ccce8/types_pynput-1.8.1.20260408.tar.gz", hash = "sha256:25ac9ab16c2cd23d9a8eea80dc46a1a733291fdaa0b6cbd24c21b0f28944b73e", size = 11880, upload-time = "2026-04-08T04:29:46.845Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d8/dd/f00d30ee7aa0d117e5d0595d728f775c16bb2f8f7525b2c800ef549fe38e/types_pynput-1.8.1.20250809-py3-none-any.whl", hash = "sha256:ca0103244c726353e0da97bc21fa081cefc5dfea206995f6369a87854eff07a1", size = 12211, upload-time = "2025-08-09T03:15:34.979Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/0d/73a9f81494639fdf7f5d3ce0168ff96bfd38f8ecaa53fac084f5e5055853/types_pynput-1.8.1.20260408-py3-none-any.whl", hash = "sha256:1c581052b88be85e45b71bd5e8cbcfdfb613a2b45d583af367da3f6a89745c36", size = 12228, upload-time = "2026-04-08T04:29:46.014Z" },
 ]
 
 [[package]]
