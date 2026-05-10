@@ -27,7 +27,9 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: Dependency Audit
-        run: uv run pip-audit
+        # CVE-2026-3219 (pip): upstream未修正のため一時除外。pipはpip-audit経由の間接依存で
+        # アプリ実行時には未使用。修正版リリース後にこのignoreを外して再評価すること。
+        run: uv run pip-audit --ignore-vuln CVE-2026-3219
 
       - name: Ruff – format check
         run: uv run ruff format --check .
