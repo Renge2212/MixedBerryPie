@@ -184,3 +184,99 @@ def test_config_recursive_submenus(tmp_path, monkeypatch):
     loaded_deep = loaded_child.submenu_items[0]
     assert loaded_deep.label == "Deep"
     assert len(loaded_deep.submenu_items) == 0
+
+
+def _use_tmp_config(tmp_path, monkeypatch):
+    config_file = tmp_path / "menu_config.json"
+    monkeypatch.setattr("src.core.config.CONFIG_FILE", str(config_file))
+    monkeypatch.setattr("src.core.config.CONFIG_DIR", str(tmp_path))
+    return config_file
+
+
+def test_load_config_skips_malformed_profile_and_keeps_others(tmp_path, monkeypatch):
+    """One bad profile entry must not throw away the user's whole config."""
+    config_file = _use_tmp_config(tmp_path, monkeypatch)
+    data = {
+        "schema_version": 5,
+        "profiles": [
+            {"name": "Mine", "trigger_key": "alt+q", "items": [{"label": "x", "key": "a"}]},
+            "oops",
+            {"name": "Broken items", "trigger_key": "f2", "items": "not a list"},
+        ],
+        "settings": {"first_run": False, "overlay_size": 500},
+    }
+    config_file.write_text(json.dumps(data), encoding="utf-8")
+
+    profiles, settings = load_config()
+
+    assert [p.name for p in profiles] == ["Mine", "Broken items"]
+    assert profiles[0].items[0].label == "x"
+    assert profiles[1].items == []
+    assert settings.overlay_size == 500
+    assert settings.first_run is False
+    assert list(tmp_path.glob("menu_config.json.*.backup")), "original should be backed up"
+
+
+def test_load_config_unreadable_file_is_not_first_run(tmp_path, monkeypatch):
+    """Falling back to defaults must not trigger the welcome dialog.
+
+    The welcome dialog saves the config, which would overwrite the user's
+    (recoverable) file with the defaults.
+    """
+    config_file = _use_tmp_config(tmp_path, monkeypatch)
+    config_file.write_text("{invalid json", encoding="utf-8")
+
+    _, settings = load_config()
+
+    assert settings.first_run is False
+    assert list(tmp_path.glob("menu_config.json.*.backup"))
+
+
+def test_load_config_unexpected_error_backs_up(tmp_path, monkeypatch):
+    config_file = _use_tmp_config(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        "src.core.config._parse_profile", lambda _p: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
+    config_file.write_text(
+        json.dumps({"schema_version": 5, "profiles": [{"name": "A"}]}), encoding="utf-8"
+    )
+
+    profiles, settings = load_config()
+
+    assert profiles[0].name == "Default"
+    assert settings.first_run is False
+    assert list(tmp_path.glob("menu_config.json.*.backup"))
+
+
+def test_load_config_legacy_list_with_submenus_and_unknown_keys(tmp_path, monkeypatch):
+    config_file = _use_tmp_config(tmp_path, monkeypatch)
+    legacy = [
+        {
+            "label": "Parent",
+            "key": "",
+            "color": "#fff",
+            "unknown_field": 1,
+            "submenu_items": [{"label": "Child", "key": "c", "color": "#000"}],
+        }
+    ]
+    config_file.write_text(json.dumps(legacy), encoding="utf-8")
+
+    profiles, _ = load_config()
+
+    parent = profiles[0].items[0]
+    assert parent.label == "Parent"
+    assert isinstance(parent.submenu_items[0], PieSlice)
+    assert parent.submenu_items[0].label == "Child"
+
+
+def test_default_profiles_are_not_shared(tmp_path, monkeypatch):
+    """Editing loaded defaults in place must not change the module defaults."""
+    from src.core import config
+
+    _use_tmp_config(tmp_path, monkeypatch)
+    profiles, _ = load_config()
+    profiles[0].items[0].icon_path = None
+    profiles[0].items.clear()
+
+    assert config.DEFAULT_PROFILES[0].items
+    assert config.DEFAULT_PROFILES[0].items[0].icon_path is not None

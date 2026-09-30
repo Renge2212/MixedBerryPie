@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
 
 from src.core import config
 from src.core.config import MenuProfile, PieSlice, add_to_icon_history
+from src.core.keys import normalize_key_combo
 from src.core.utils import resolve_icon_path
 
 from .custom_widgets import KeySequenceEdit, _render_icon_pixmap
@@ -443,8 +444,11 @@ class ItemEditorDialog(QDialog):
             return
 
         # Validation: Check if key matches trigger key
-        if action_type == "key" and self.trigger_key and key.lower() == self.trigger_key.lower():
-            # Simple case-insensitive comparison
+        if (
+            action_type == "key"
+            and self.trigger_key
+            and normalize_key_combo(key) == normalize_key_combo(self.trigger_key)
+        ):
             QMessageBox.warning(
                 self,
                 self.tr("Input Error"),
