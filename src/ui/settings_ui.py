@@ -41,6 +41,7 @@ from src.core.config import (
     MenuProfile,
     PieSlice,
 )
+from src.core.keys import normalize_key_combo
 from src.core.logger import get_logger
 from src.core.utils import get_resource_path, is_dark_mode
 
@@ -1693,22 +1694,29 @@ class SettingsWindow(QWidget):
         self.settings.language = self.combo_language.currentData()
 
         # Validate all profiles before saving
-        seen_keys: dict[str, str] = {}
+        # The same trigger may be reused by profiles with different target apps
+        # (the app picks the profile matching the active window), so only an
+        # identical trigger + target-app set is a conflict.
+        seen_keys: dict[tuple[str, frozenset[str]], str] = {}
         for profile in self.profiles:
             # Skip validation for profiles without a trigger key (inactive profiles)
             if not profile.trigger_key:
                 continue
 
-            if profile.trigger_key in seen_keys:
+            conflict_key = (
+                normalize_key_combo(profile.trigger_key),
+                frozenset(t.lower() for t in profile.target_apps or []),
+            )
+            if conflict_key in seen_keys:
                 QMessageBox.warning(
                     self,
                     "入力エラー",
-                    f"キー '{profile.trigger_key}' は '{profile.name}' と '{seen_keys[profile.trigger_key]}' の両方で使用されています。\n\n"
+                    f"キー '{profile.trigger_key}' は '{profile.name}' と '{seen_keys[conflict_key]}' の両方で使用されています。\n\n"
                     "トリガーキーは重複しないように設定してください。",
                 )
                 self.profile_list.setCurrentRow(self.profiles.index(profile))
                 return False
-            seen_keys[profile.trigger_key] = profile.name
+            seen_keys[conflict_key] = profile.name
 
         if config.save_config(self.profiles, self.settings):
             self.is_dirty = False

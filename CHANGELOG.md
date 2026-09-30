@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Fixed
+- Long Press Delay > 0 never showed the menu (the timer's timeout was not connected).
+- A quick tap of the trigger could leave the menu open until the next press.
+- One malformed profile in the config reset everything to defaults, and the welcome dialog then saved the defaults over the user's file. Malformed entries are now skipped and the original file is backed up.
+- Keys recorded with Qt names (`pgup`, `ins`, `+`, ...) were sent as their first letter (`p`, `i`) and never matched as triggers.
+- Modifier-only triggers (e.g. `ctrl`) and `win+...` triggers never fired.
+- Profiles sharing a trigger key with different Target Apps could not be saved.
+- Deleting an icon from the icon library did not remove it from history or disk.
 ## [1.3.0] - 2026-03-01
 
 Major update focusing on code quality, security, and advanced menu features.

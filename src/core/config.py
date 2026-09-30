@@ -5,11 +5,13 @@ It defines the core data structures (PieSlice, AppSettings, MenuProfile)
 and provides functions to persist them to disk.
 """
 
+import copy
 import hashlib
 import json
 import os
 import shutil
 import tempfile
+import time
 from dataclasses import asdict, dataclass, field
 
 from src.core.logger import get_logger
@@ -83,10 +85,8 @@ def _find_duplicate_in_dir(directory: str, src_hash: str) -> str | None:
     """Find an existing file in directory with the same content hash."""
     for name in os.listdir(directory):
         file_path = os.path.join(directory, name)
-        if os.path.isfile(file_path):
-            with open(file_path, "rb") as f:
-                if hashlib.sha256(f.read()).hexdigest() == src_hash:
-                    return file_path
+        if os.path.isfile(file_path) and _hash_file(file_path) == src_hash:
+            return file_path
     return None
 
 
@@ -178,16 +178,18 @@ def remove_from_icon_history(path: str) -> list[str]:
         Updated history list.
     """
     history = load_icon_history()
-    new_history = [p for p in history if os.path.abspath(p) != os.path.abspath(path)]
+    # History entries for managed icons are stored relative to CONFIG_DIR
+    target_abs = _icon_path_to_abs(path)
+    new_history = [p for p in history if _icon_path_to_abs(p) != target_abs]
 
     if len(new_history) != len(history):
         save_icon_history(new_history)
         # If the file is in our managed directory, delete it
         _user_icons_abs = os.path.abspath(USER_ICONS_DIR) + os.sep
-        if os.path.abspath(path).startswith(_user_icons_abs):
+        if target_abs.startswith(_user_icons_abs):
             try:
-                if os.path.exists(path):
-                    os.remove(path)
+                if os.path.exists(target_abs):
+                    os.remove(target_abs)
                     logger.info(f"Deleted user icon asset: {path}")
             except Exception as e:
                 logger.error(f"Failed to delete icon asset: {e}")
@@ -286,7 +288,9 @@ class MenuProfile:
 
 def _parse_slice(data: dict) -> PieSlice:
     """Recursively parse a dictionary into a PieSlice object."""
-    submenu_data = data.get("submenu_items", [])
+    submenu_data = data.get("submenu_items") or []
+    if not isinstance(submenu_data, list):
+        submenu_data = []
     submenus = [_parse_slice(child) for child in submenu_data if isinstance(child, dict)]
 
     return PieSlice(
@@ -312,6 +316,55 @@ DEFAULT_ITEMS = [
 DEFAULT_TRIGGER = "ctrl+space"
 
 DEFAULT_PROFILES = [MenuProfile(name="Default", trigger_key=DEFAULT_TRIGGER, items=DEFAULT_ITEMS)]
+
+
+def _default_profiles() -> list[MenuProfile]:
+    """Return a fresh copy of the default profiles.
+
+    Callers edit profiles in place (e.g. the icon picker clears icon paths), so
+    handing out the module-level list would corrupt the defaults.
+    """
+    return copy.deepcopy(DEFAULT_PROFILES)
+
+
+def _parse_profile(p_data: object) -> MenuProfile | None:
+    """Parse one profile entry, returning None (and logging) if it is malformed."""
+    if not isinstance(p_data, dict):
+        logger.warning(f"Skipping malformed profile entry: {p_data!r}")
+        return None
+    items_data = p_data.get("items") or []
+    if not isinstance(items_data, list):
+        items_data = []
+    target_apps = p_data.get("target_apps") or []
+    if not isinstance(target_apps, list):
+        target_apps = []
+    trigger_key = p_data.get("trigger_key", DEFAULT_TRIGGER)
+    return MenuProfile(
+        name=str(p_data.get("name", "Unnamed Profile")),
+        trigger_key=trigger_key if isinstance(trigger_key, str) else DEFAULT_TRIGGER,
+        items=[_parse_slice(i) for i in items_data if isinstance(i, dict)],
+        target_apps=[t for t in target_apps if isinstance(t, str)],
+    )
+
+
+def _backup_config_file(reason: str) -> None:
+    """Keep a timestamped copy of the config file before falling back to defaults."""
+    try:
+        if os.path.exists(CONFIG_FILE):
+            backup_file = f"{CONFIG_FILE}.{time.strftime('%Y%m%d-%H%M%S')}.backup"
+            shutil.copy2(CONFIG_FILE, backup_file)
+            logger.info(f"Config backed up ({reason}) to: {backup_file}")
+    except Exception as backup_error:
+        logger.error(f"Failed to backup config: {backup_error}")
+
+
+def _fallback_settings() -> AppSettings:
+    """Settings used when an existing config could not be read.
+
+    first_run is False: the file exists, so this is not a first run, and the
+    welcome dialog would otherwise save the defaults over the user's file.
+    """
+    return AppSettings(first_run=False)
 
 
 def _validate_setting_type(value: object, default: object) -> bool:
@@ -344,8 +397,9 @@ def load_config() -> tuple[list[MenuProfile], AppSettings]:
     if not os.path.exists(CONFIG_FILE):
         logger.info("Config file not found, creating default configuration")
         default_settings = AppSettings()
-        save_config(DEFAULT_PROFILES, default_settings)
-        return DEFAULT_PROFILES, default_settings
+        profiles = _default_profiles()
+        save_config(profiles, default_settings)
+        return profiles, default_settings
 
     try:
         with open(CONFIG_FILE, encoding="utf-8") as f:
@@ -354,7 +408,7 @@ def load_config() -> tuple[list[MenuProfile], AppSettings]:
         if isinstance(data, list):
             # Very old format migration
             logger.info("Detected old list format, migrating")
-            items = [PieSlice(**item) for item in data if isinstance(item, dict)]
+            items = [_parse_slice(item) for item in data if isinstance(item, dict)]
             settings = AppSettings()
             profile = MenuProfile(name="Default", trigger_key=DEFAULT_TRIGGER, items=items)
             return [profile], settings
@@ -364,6 +418,8 @@ def load_config() -> tuple[list[MenuProfile], AppSettings]:
 
             # Load app settings first
             settings_data = data.get("settings", {})
+            if not isinstance(settings_data, dict):
+                settings_data = {}
             # Only keep valid fields and validate types
             valid_fields = {}
             default_settings = AppSettings()
@@ -384,46 +440,40 @@ def load_config() -> tuple[list[MenuProfile], AppSettings]:
                 # Migrate version 2 (single trigger) to version 3 (multi profile)
                 logger.info(f"Migrating schema version {schema_version} to 3")
                 trigger_key = data.get("trigger_key", DEFAULT_TRIGGER)
-                items_data = data.get("items", [])
+                items_data = data.get("items") or []
+                if not isinstance(items_data, list):
+                    items_data = []
                 items = [_parse_slice(i) for i in items_data if isinstance(i, dict)]
                 profiles.append(MenuProfile(name="Default", trigger_key=trigger_key, items=items))
             else:
                 # Load existing profiles
-                for p_data in data.get("profiles", []):
-                    items = [_parse_slice(i) for i in p_data.get("items", [])]
-                    profiles.append(
-                        MenuProfile(
-                            name=p_data.get("name", "Unnamed Profile"),
-                            trigger_key=p_data.get("trigger_key", DEFAULT_TRIGGER),
-                            items=items,
-                            target_apps=p_data.get("target_apps", []),
-                        )
-                    )
+                profiles_data = data.get("profiles") or []
+                if not isinstance(profiles_data, list):
+                    profiles_data = []
+                for p_data in profiles_data:
+                    parsed = _parse_profile(p_data)
+                    if parsed is not None:
+                        profiles.append(parsed)
+                if len(profiles) != len(profiles_data):
+                    _backup_config_file("malformed profile entries skipped")
 
             if not profiles:
-                profiles = DEFAULT_PROFILES
+                profiles = _default_profiles()
 
             return profiles, settings
         else:
             logger.warning(f"Unexpected config format: {type(data)}")
-            return DEFAULT_PROFILES, AppSettings()
+            _backup_config_file("unexpected format")
+            return _default_profiles(), _fallback_settings()
 
     except json.JSONDecodeError as e:
         logger.error(f"Config file is corrupted (invalid JSON): {e}")
-        # Backup corrupted file
-        try:
-            backup_file = CONFIG_FILE + ".backup"
-            if os.path.exists(CONFIG_FILE):
-                import shutil
-
-                shutil.copy(CONFIG_FILE, backup_file)
-                logger.info(f"Corrupted config backed up to: {backup_file}")
-        except Exception as backup_error:
-            logger.error(f"Failed to backup corrupted config: {backup_error}")
-        return DEFAULT_PROFILES, AppSettings()
+        _backup_config_file("invalid JSON")
+        return _default_profiles(), _fallback_settings()
     except Exception as e:
-        logger.error(f"Error loading config: {e}")
-        return DEFAULT_PROFILES, AppSettings()
+        logger.error(f"Error loading config: {e}", exc_info=True)
+        _backup_config_file("load error")
+        return _default_profiles(), _fallback_settings()
 
 
 def save_config(profiles: list[MenuProfile], settings: AppSettings | None = None) -> bool:

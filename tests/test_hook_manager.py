@@ -2,6 +2,8 @@
 
 import os
 import sys
+import threading
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -19,6 +21,11 @@ def make_manager(release_return=False):
     release_cb = MagicMock(return_value=release_return)
     mgr = HookManager(on_trigger_press=press_cb, on_trigger_release=release_cb)
     return mgr, press_cb, release_cb
+
+
+def flush(mgr):
+    """Wait until every dispatched callback has run."""
+    mgr._callback_executor.submit(lambda: None).result(timeout=5)
 
 
 def make_data(vk: int):
@@ -129,18 +136,18 @@ def test_filter_passes_modifier_through():
 
 
 def test_filter_suppresses_and_fires_press_callback():
-    mgr, _press_cb, _ = make_manager()
+    mgr, press_cb, _ = make_manager()
     with patch.object(mgr, "_start_listener"):
         mgr.start_hook(["ctrl+space"])
     mgr._listener = MagicMock()  # set AFTER start_hook
 
     mgr._held_modifiers = {"ctrl"}
-    with patch("threading.Thread") as mock_thread:
-        result = mgr._win32_event_filter(WM_KEYDOWN, make_data(VK_SPACE))
+    result = mgr._win32_event_filter(WM_KEYDOWN, make_data(VK_SPACE))
+    flush(mgr)
 
     assert result is False
     assert "space" in mgr._active_suppressions
-    mock_thread.assert_called_once()
+    press_cb.assert_called_once_with("ctrl+space")
 
 
 def test_filter_no_suppress_wrong_modifiers():
@@ -151,8 +158,10 @@ def test_filter_no_suppress_wrong_modifiers():
 
     mgr._held_modifiers = set()  # ctrl not held
     result = mgr._win32_event_filter(WM_KEYDOWN, make_data(VK_SPACE))
+    flush(mgr)
 
     assert result is True
+    _press_cb.assert_not_called()
     mgr._listener.suppress_event.assert_not_called()
     assert "space" not in mgr._active_suppressions
 
@@ -161,16 +170,18 @@ def test_filter_no_suppress_wrong_modifiers():
 
 
 def test_filter_suppresses_release_and_fires_release_callback():
-    mgr, _, _release_cb = make_manager(release_return=True)
+    mgr, _, release_cb = make_manager(release_return=True)
     mgr._listener = MagicMock()
     mgr._active_suppressions["space"] = "ctrl+space"
 
-    with patch("threading.Thread") as mock_thread:
+    with patch.object(mgr, "_replay_key") as mock_replay:
         result = mgr._win32_event_filter(WM_KEYUP, make_data(VK_SPACE))
+        flush(mgr)
 
     assert result is False
     assert "space" not in mgr._active_suppressions
-    mock_thread.assert_called_once()
+    release_cb.assert_called_once_with("ctrl+space")
+    mock_replay.assert_not_called()  # consumed
 
 
 def test_filter_passes_unsuppressed_release_through():
@@ -227,6 +238,131 @@ def test_parse_key_f5():
     assert _parse_key("f5") == pynput_keyboard.Key.f5
 
 
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("pgup", pynput_keyboard.Key.page_up),
+        ("pgdown", pynput_keyboard.Key.page_down),
+        ("del", pynput_keyboard.Key.delete),
+        ("ins", pynput_keyboard.Key.insert),
+        ("return", pynput_keyboard.Key.enter),
+        ("esc", pynput_keyboard.Key.esc),
+        ("escape", pynput_keyboard.Key.esc),
+    ],
+)
+def test_parse_key_qt_names(name, expected):
+    """Names produced by the Qt key recorder map to the intended key."""
+    assert _parse_key(name) == expected
+
+
+def test_parse_key_plus():
+    key = _parse_key("plus")
+    assert isinstance(key, pynput_keyboard.KeyCode)
+    assert key.char == "+"
+
+
+@pytest.mark.parametrize("name", ["numpad1", "pgupp", ""])
+def test_parse_key_unknown_raises(name):
+    """Unknown names must fail instead of sending their first character."""
+    with pytest.raises(ValueError):
+        _parse_key(name)
+
+
+# ── Key name normalization in the hook ────────────────────────────────────────
+
+
+VK_PRIOR = 0x21  # Page Up
+VK_LWIN = 0x5B
+
+
+def test_filter_matches_trigger_recorded_with_qt_name():
+    """A trigger saved as 'pgup' (Qt's name) fires on the Page Up key."""
+    mgr, press_cb, _ = make_manager()
+    with patch.object(mgr, "_start_listener"):
+        mgr.start_hook(["ctrl+pgup"])
+
+    mgr._held_modifiers = {"ctrl"}
+    result = mgr._win32_event_filter(WM_KEYDOWN, make_data(VK_PRIOR))
+    flush(mgr)
+
+    assert result is False
+    press_cb.assert_called_once_with("ctrl+pgup")
+
+
+def test_filter_win_alias_matches_windows_modifier():
+    mgr, press_cb, _ = make_manager()
+    with patch.object(mgr, "_start_listener"):
+        mgr.start_hook(["win+space"])
+
+    mgr._win32_event_filter(WM_KEYDOWN, make_data(VK_LWIN))
+    result = mgr._win32_event_filter(WM_KEYDOWN, make_data(VK_SPACE))
+    flush(mgr)
+
+    assert result is False
+    press_cb.assert_called_once_with("win+space")
+
+
+def test_filter_modifier_only_trigger_fires():
+    """A trigger that is just a modifier ('ctrl') must fire on press and release."""
+    mgr, press_cb, release_cb = make_manager(release_return=True)
+    with patch.object(mgr, "_start_listener"):
+        mgr.start_hook(["ctrl"])
+
+    assert mgr._win32_event_filter(WM_KEYDOWN, make_data(VK_CTRL_L)) is False
+    assert mgr._win32_event_filter(WM_KEYUP, make_data(VK_CTRL_L)) is False
+    flush(mgr)
+
+    press_cb.assert_called_once_with("ctrl")
+    release_cb.assert_called_once_with("ctrl")
+    assert mgr._held_modifiers == set()
+
+
+def test_filter_modifier_only_trigger_ignores_other_modifiers():
+    mgr, press_cb, _ = make_manager()
+    with patch.object(mgr, "_start_listener"):
+        mgr.start_hook(["ctrl"])
+
+    mgr._win32_event_filter(WM_KEYDOWN, make_data(VK_SHIFT_L))
+    assert mgr._win32_event_filter(WM_KEYDOWN, make_data(VK_CTRL_L)) is True  # shift+ctrl
+    flush(mgr)
+
+    press_cb.assert_not_called()
+
+
+# ── Callback ordering ─────────────────────────────────────────────────────────
+
+
+def test_release_callback_runs_after_press_callback():
+    """A quick tap must not have its release handled before its press.
+
+    Previously each callback ran on its own thread, so a slow press handler
+    (e.g. querying the active window) could finish after the release and leave
+    the menu open.
+    """
+    events = []
+    press_started = threading.Event()
+
+    def slow_press(trigger):
+        press_started.set()
+        time.sleep(0.05)
+        events.append(("press", trigger))
+
+    def release(trigger):
+        events.append(("release", trigger))
+        return True
+
+    mgr = HookManager(on_trigger_press=slow_press, on_trigger_release=release)
+    with patch.object(mgr, "_start_listener"):
+        mgr.start_hook(["tab"])
+
+    mgr._win32_event_filter(WM_KEYDOWN, make_data(VK_TAB))
+    press_started.wait(timeout=5)
+    mgr._win32_event_filter(WM_KEYUP, make_data(VK_TAB))
+    flush(mgr)
+
+    assert events == [("press", "tab"), ("release", "tab")]
+
+
 # ── multi-profile same primary ────────────────────────────────────────────────
 
 
@@ -238,8 +374,7 @@ def test_filter_ctrl_tab_vs_shift_tab():
 
     # ctrl+tab
     mgr._held_modifiers = {"ctrl"}
-    with patch("threading.Thread"):
-        mgr._win32_event_filter(WM_KEYDOWN, make_data(VK_TAB))
+    mgr._win32_event_filter(WM_KEYDOWN, make_data(VK_TAB))
     assert mgr._active_suppressions.get("tab") == "ctrl+tab"
 
     # Reset
@@ -248,8 +383,7 @@ def test_filter_ctrl_tab_vs_shift_tab():
 
     # shift+tab
     mgr._held_modifiers = {"shift"}
-    with patch("threading.Thread"):
-        mgr._win32_event_filter(WM_KEYDOWN, make_data(VK_TAB))
+    mgr._win32_event_filter(WM_KEYDOWN, make_data(VK_TAB))
     assert mgr._active_suppressions.get("tab") == "shift+tab"
 
 

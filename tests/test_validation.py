@@ -103,3 +103,40 @@ def test_settings_validation_duplicate_trigger(qapp):
         assert result is False
         mock_msgbox.warning.assert_called()
         assert "重複しないように設定してください" in str(mock_msgbox.warning.call_args)
+
+
+def test_settings_allows_same_trigger_for_different_target_apps(qapp):
+    """Per-app profiles share a trigger by design; saving them must be allowed."""
+    with (
+        patch("src.ui.settings_ui.QMessageBox") as mock_msgbox,
+        patch("src.core.config.load_config") as mock_load,
+        patch("src.core.config.save_config", return_value=True),
+    ):
+        global_p = MenuProfile(name="Global", trigger_key="ctrl+space", items=[])
+        app_p = MenuProfile(
+            name="Paint", trigger_key="ctrl+space", items=[], target_apps=["clipstudio.exe"]
+        )
+        mock_load.return_value = ([global_p, app_p], AppSettings())
+
+        window = SettingsWindow(on_save_callback=lambda: None)
+
+        assert window._save_internal(show_success=False) is True
+        mock_msgbox.warning.assert_not_called()
+
+
+def test_settings_rejects_equivalent_trigger_spellings(qapp):
+    """'Ctrl+PgUp' and 'ctrl+page_up' are the same key and must conflict."""
+    with (
+        patch("src.ui.settings_ui.QMessageBox") as mock_msgbox,
+        patch("src.core.config.load_config") as mock_load,
+        patch("src.core.config.save_config", return_value=True) as mock_save,
+    ):
+        p1 = MenuProfile(name="P1", trigger_key="Ctrl+PgUp", items=[])
+        p2 = MenuProfile(name="P2", trigger_key="ctrl+page_up", items=[])
+        mock_load.return_value = ([p1, p2], AppSettings())
+
+        window = SettingsWindow(on_save_callback=lambda: None)
+
+        assert window._save_internal(show_success=False) is False
+        mock_msgbox.warning.assert_called()
+        mock_save.assert_not_called()

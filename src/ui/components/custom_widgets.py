@@ -1,5 +1,6 @@
 import contextlib
 import os
+import sys
 from typing import Any
 
 from PyQt6.QtCore import (
@@ -44,6 +45,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.config import PieSlice
+from src.core.keys import VK_TO_NAME, normalize_key_name
 from src.core.logger import get_logger
 from src.core.utils import is_dark_mode, resolve_icon_path
 
@@ -222,8 +224,12 @@ class KeySequenceEdit(QLineEdit):
             parts.append("windows")
 
         text = QKeySequence(key).toString().lower()
-        key_map = {"return": "enter", "escape": "esc", "space": "space"}
-        text = key_map.get(text, text)
+        if sys.platform == "win32":
+            # Use the physical key so shift+1 is recorded as "shift+1" (what the
+            # hook sees), not "shift+!".
+            text = VK_TO_NAME.get(event.nativeVirtualKey(), text)
+        # Qt names differ from ours ("pgup", "del", "+", ...)
+        text = normalize_key_name(text) if text else text
 
         # Only append text if it's not a modifier key that was already handled
         if text and not is_modifier:

@@ -13,10 +13,12 @@ import sys as _sys
 import threading
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, ClassVar
 
 from pynput import keyboard as pynput_keyboard
 
+from src.core.keys import VK_TO_NAME, normalize_key_name, split_key_combo
 from src.core.logger import get_logger
 from src.core.win32_input import MAGIC_EXTRA_INFO, send_pynput_key_safely
 
@@ -49,28 +51,6 @@ _ALL_MOD_VKS: dict[int, str] = {
     0x5C: "windows",
 }
 
-# VK → primary key name mapping
-_VK_TO_NAME: dict[int, str] = {
-    0x20: "space",
-    0x0D: "enter",
-    0x09: "tab",
-    0x1B: "escape",
-    0x08: "backspace",
-    0x2E: "delete",
-    0x2D: "insert",
-    0x24: "home",
-    0x23: "end",
-    0x21: "page_up",
-    0x22: "page_down",
-    0x26: "up",
-    0x28: "down",
-    0x25: "left",
-    0x27: "right",
-    **{0x70 + i: f"f{i + 1}" for i in range(12)},  # F1-F12
-    **{0x41 + i: chr(ord("a") + i) for i in range(26)},  # A-Z → a-z
-    **{0x30 + i: str(i) for i in range(10)},  # 0-9
-}
-
 # pynput Key → modifier name (for release_all_modifiers)
 _PYNPUT_MOD_MAP: dict[Any, str] = {
     pynput_keyboard.Key.ctrl: "ctrl",
@@ -89,37 +69,27 @@ _PYNPUT_MOD_MAP: dict[Any, str] = {
 
 
 def _parse_key(name: str) -> pynput_keyboard.Key | pynput_keyboard.KeyCode:
-    """Parse a key name string into a pynput key object."""
+    """Parse a key name string into a pynput key object.
+
+    Raises:
+        ValueError: If the name is not a known key. Unknown names used to fall
+            back to their first character (e.g. ``pgup`` sent ``p``).
+    """
+    name = normalize_key_name(name)
+    aliases: dict[str, pynput_keyboard.Key | pynput_keyboard.KeyCode] = {
+        "escape": pynput_keyboard.Key.esc,
+        "windows": pynput_keyboard.Key.cmd,
+        "plus": pynput_keyboard.KeyCode.from_char("+"),
+    }
+    if name in aliases:
+        return aliases[name]
     try:
         return pynput_keyboard.Key[name]
     except KeyError:
         pass
-    aliases = {
-        "space": pynput_keyboard.Key.space,
-        "enter": pynput_keyboard.Key.enter,
-        "tab": pynput_keyboard.Key.tab,
-        "esc": pynput_keyboard.Key.esc,
-        "escape": pynput_keyboard.Key.esc,
-        "backspace": pynput_keyboard.Key.backspace,
-        "delete": pynput_keyboard.Key.delete,
-        "insert": pynput_keyboard.Key.insert,
-        "home": pynput_keyboard.Key.home,
-        "end": pynput_keyboard.Key.end,
-        "page_up": pynput_keyboard.Key.page_up,
-        "page_down": pynput_keyboard.Key.page_down,
-        "up": pynput_keyboard.Key.up,
-        "down": pynput_keyboard.Key.down,
-        "left": pynput_keyboard.Key.left,
-        "right": pynput_keyboard.Key.right,
-        **{f"f{i}": getattr(pynput_keyboard.Key, f"f{i}") for i in range(1, 13)},
-    }
-    if name in aliases:
-        from typing import cast
-
-        return cast(pynput_keyboard.Key | pynput_keyboard.KeyCode, aliases[name])
     if len(name) == 1:
         return pynput_keyboard.KeyCode.from_char(name)
-    return pynput_keyboard.KeyCode.from_char(name[0])
+    raise ValueError(f"Unknown key name: {name!r}")
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -292,6 +262,13 @@ class HookManager:
         # Currently held modifier names (tracked via VK in win32_event_filter)
         self._held_modifiers: set[str] = set()
 
+        # Press/release callbacks run off the hook thread (the hook must return
+        # quickly) but on a single worker, so a release is never handled before
+        # the press that preceded it.
+        self._callback_executor = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="hook-callback"
+        )
+
     # ──────────────────────────────────────────────────────────────────────
     # Public API
     # ──────────────────────────────────────────────────────────────────────
@@ -306,7 +283,9 @@ class HookManager:
             self._held_modifiers = set()
 
             for full_key in trigger_keys:
-                parts = full_key.lower().split("+")
+                parts = split_key_combo(full_key)
+                if not parts:
+                    continue
                 primary = parts[-1]
                 modifiers = tuple(sorted(parts[:-1]))
                 self._trigger_configs.setdefault(primary, []).append((modifiers, full_key))
@@ -425,10 +404,10 @@ class HookManager:
             with self._state_lock:
                 if is_press and mod_name not in self._held_modifiers:
                     self._held_modifiers.add(mod_name)
-                    logger.info(f"MODIFIER ADDED: {mod_name} (Current: {self._held_modifiers})")
+                    logger.debug(f"MODIFIER ADDED: {mod_name} (Current: {self._held_modifiers})")
                 elif is_release and mod_name in self._held_modifiers:
                     self._held_modifiers.discard(mod_name)
-                    logger.info(f"MODIFIER REMOVED: {mod_name} (Current: {self._held_modifiers})")
+                    logger.debug(f"MODIFIER REMOVED: {mod_name} (Current: {self._held_modifiers})")
                 # Modifier keys ALSO need to be checked as primary trigger keys
                 # (e.g. if trigger is 'ctrl' alone) — check inside the same lock!
                 is_also_trigger = mod_name in self._trigger_configs
@@ -437,7 +416,7 @@ class HookManager:
             # else: fall through to primary key logic below
 
         # ── Resolve primary key name ──────────────────────────────────────
-        key_name = _VK_TO_NAME.get(vk) or _ALL_MOD_VKS.get(vk)
+        key_name = VK_TO_NAME.get(vk) or _ALL_MOD_VKS.get(vk)
         if key_name is None:
             return True  # Unknown key — pass through
 
@@ -450,12 +429,7 @@ class HookManager:
             with self._state_lock:
                 self._active_suppressions.pop(key_name, None)
 
-            # Call release callback in a thread to avoid blocking the hook
-            threading.Thread(
-                target=self._handle_release,
-                args=(suppressed_trigger, key_name),
-                daemon=True,
-            ).start()
+            self._dispatch(self._handle_release, suppressed_trigger, key_name)
             return False
 
         if is_press:
@@ -464,7 +438,9 @@ class HookManager:
                     return False
 
                 configs = self._trigger_configs.get(key_name, [])
-                held_tuple = tuple(sorted(self._held_modifiers))
+                # A modifier used as the primary key (e.g. trigger "ctrl") is
+                # itself in _held_modifiers by now; don't count it twice.
+                held_tuple = tuple(sorted(self._held_modifiers - {key_name}))
 
                 # Check for matches immediately while we hold the lock to avoid
                 # having to resolve race conditions later
@@ -479,22 +455,24 @@ class HookManager:
                     logger.info(f"Trigger MATCH: {matched_trigger}. Suppressing {key_name}.")
                     self._active_suppressions[key_name] = matched_trigger
 
-                    try:
-                        logger.info(
-                            f"HookManager: Spawning thread for press callback: {matched_trigger}"
-                        )
-                        t = threading.Thread(
-                            target=self.on_trigger_press_callback,
-                            args=(matched_trigger,),
-                            daemon=True,
-                        )
-                        t.start()
-                    except Exception as e:
-                        logger.error(f"HookManager: Failed to spawn thread: {e}", exc_info=True)
-
+                    self._dispatch(self.on_trigger_press_callback, matched_trigger)
                     return False
 
         return True  # Pass through
+
+    def _dispatch(self, func: Callable[..., Any], *args: Any) -> None:
+        """Run a callback on the ordered callback worker."""
+
+        def run() -> None:
+            try:
+                func(*args)
+            except Exception as e:
+                logger.error(f"HookManager: callback {func} failed: {e}", exc_info=True)
+
+        try:
+            self._callback_executor.submit(run)
+        except RuntimeError as e:  # executor shut down during exit
+            logger.debug(f"HookManager: dropping callback during shutdown: {e}")
 
     def _handle_release(self, trigger: str, key_name: str) -> None:
         """Handle trigger release: call callback and replay if not consumed."""

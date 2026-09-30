@@ -13,6 +13,7 @@ from src.core.config import (
     _normalize_icon_path,
     _validate_setting_type,
     add_to_icon_history,
+    remove_from_icon_history,
 )
 
 # ── _hash_file ───────────────────────────────────────────────────────────────
@@ -279,3 +280,40 @@ def test_add_deduplicates_history(icon_env):
 def test_add_nonexistent_returns_current(icon_env):
     result = add_to_icon_history("/nonexistent/path/icon.png")
     assert isinstance(result, list)
+
+
+# ── remove_from_icon_history ─────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("form", ["absolute", "relative"])
+def test_remove_managed_icon_from_history_and_disk(icon_env, form):
+    """History stores managed icons as 'user_icons/x'; removal must match both forms.
+
+    Previously the relative entry was compared against the cwd-based abspath,
+    so the icon stayed in history and on disk.
+    """
+    tmp_path, config_dir, _ = icon_env
+    src = tmp_path / "icon.png"
+    src.write_bytes(b"data")
+    [entry] = add_to_icon_history(str(src))
+    managed_file = os.path.join(config_dir, entry)
+    assert os.path.exists(managed_file)
+
+    path = managed_file if form == "absolute" else entry
+    result = remove_from_icon_history(path)
+
+    assert result == []
+    assert not os.path.exists(managed_file)
+
+
+def test_remove_external_icon_keeps_file(icon_env, monkeypatch):
+    tmp_path, _, _ = icon_env
+    external = tmp_path / "keep.png"
+    external.write_bytes(b"x")
+    monkeypatch.setattr("src.core.config.load_icon_history", lambda: [str(external)])
+    saved: list[list[str]] = []
+    monkeypatch.setattr("src.core.config.save_icon_history", saved.append)
+
+    assert remove_from_icon_history(str(external)) == []
+    assert saved == [[]]
+    assert external.exists()

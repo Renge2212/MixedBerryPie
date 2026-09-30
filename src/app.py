@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 from src.core import config, i18n
 from src.core.config import MenuProfile
 from src.core.hook_manager import HookManager, _parse_key
+from src.core.keys import split_key_combo
 from src.core.logger import LOGS_DIR, get_logger, set_file_logging
 from src.core.utils import get_resource_path
 from src.core.version import __version__
@@ -32,7 +33,6 @@ app_logger = get_logger("piemenu.app")
 class KeySignal(QObject):
     """Signal definition for key events."""
 
-    show_signal = pyqtSignal()
     hide_signal = pyqtSignal(bool)  # bool: execute action?
     timer_start_signal = pyqtSignal(int)
     timer_stop_signal = pyqtSignal()
@@ -78,7 +78,11 @@ class MixedBerryPieApp(QObject):
         # Long press support
         self.long_press_timer = QTimer(self)
         self.long_press_timer.setSingleShot(True)
+        self.long_press_timer.timeout.connect(self._on_long_press_timeout)
         self.pending_profile: MenuProfile | None = None
+        # Guards pending_profile / is_menu_visible, which the hook callback
+        # worker and the GUI thread (long-press timeout) both update.
+        self._menu_state_lock = threading.Lock()
 
         self.setup_tray()
         self.setup_signals()
@@ -129,9 +133,6 @@ class MixedBerryPieApp(QObject):
         """Connect internal signals for cross-thread communication."""
         # Cross-thread signals for showing/hiding overlay from hook thread
         self.key_signal = KeySignal()
-        self.key_signal.show_signal.connect(  # type: ignore
-            self.overlay.show_menu, Qt.ConnectionType.QueuedConnection
-        )
         self.key_signal.hide_signal.connect(  # type: ignore
             self.overlay.hide_menu, Qt.ConnectionType.QueuedConnection
         )
@@ -291,14 +292,34 @@ class MixedBerryPieApp(QObject):
             if selected_profile:
                 app_logger.info(f"App: Matching profile found: {selected_profile.name}")
                 delay = self.settings.long_press_delay_ms
+                with self._menu_state_lock:
+                    if delay <= 0:
+                        # Mark visible now (not when the GUI thread gets to it) so a
+                        # release that arrives before the overlay is drawn hides it.
+                        self.is_menu_visible = True
+                    else:
+                        self.pending_profile = selected_profile
                 if delay <= 0:
                     self.key_signal.do_show_signal.emit(selected_profile)
                 else:
-                    self.pending_profile = selected_profile
                     self.key_signal.timer_start_signal.emit(delay)
+
+    def _on_long_press_timeout(self) -> None:
+        """Show the pending profile once the trigger has been held long enough."""
+        with self._menu_state_lock:
+            profile = self.pending_profile
+            self.pending_profile = None
+            if profile is None:
+                return  # Released before the timer fired
+            self.is_menu_visible = True
+        app_logger.debug(f"Long press reached for profile: {profile.name}")
+        self._do_show_overlay_dynamic(profile)
 
     def _do_show_overlay_dynamic(self, payload: Any) -> None:
         """Actually show the overlay using a profile or direct list of items."""
+        if not self.is_menu_visible:
+            app_logger.debug("Trigger already released, not showing overlay")
+            return
         if isinstance(payload, MenuProfile):
             app_logger.info(f"App: _do_show_overlay called for profile: {payload.name}")
             self.overlay.menu_items = payload.items
@@ -309,21 +330,24 @@ class MixedBerryPieApp(QObject):
             )
             self.overlay.menu_items = payload
 
-        self.is_menu_visible = True
-        self.key_signal.show_signal.emit()
+        self.overlay.show_menu()
 
     def on_trigger_release(self, trigger_key: str) -> bool:
         """Handle trigger key release."""
         self.key_signal.timer_stop_signal.emit()
-        if self.pending_profile:
-            app_logger.debug(f"Trigger {trigger_key} released BEFORE long press delay")
+        with self._menu_state_lock:
+            was_pending = self.pending_profile is not None
+            was_visible = self.is_menu_visible
             self.pending_profile = None
+            self.is_menu_visible = False
+
+        if was_pending:
+            app_logger.debug(f"Trigger {trigger_key} released BEFORE long press delay")
             return not self.settings.replay_unselected
 
-        if self.is_menu_visible:
+        if was_visible:
             was_selected = bool(self.overlay.active_path)
             app_logger.debug(f"Trigger {trigger_key} released, item selected: {was_selected}")
-            self.is_menu_visible = False
             self.key_signal.hide_signal.emit(True)
             if was_selected:
                 return True
@@ -369,11 +393,13 @@ class MixedBerryPieApp(QObject):
                     return
                 subprocess.Popen(args, shell=False)
             else:
+                # Parse everything first so an invalid name presses nothing
+                parts = split_key_combo(value)
+                keys_to_press = [_parse_key(p) for p in parts]
+
                 # Release modifiers to prevent leakage
                 self.hook_manager.release_all_modifiers()
 
-                parts = value.lower().split("+")
-                keys_to_press = [_parse_key(p) for p in parts]
                 app_logger.debug(f"Sending keys: {parts} (parsed: {keys_to_press})")
 
                 # Sequential key handling with safety delays

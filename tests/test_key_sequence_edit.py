@@ -77,3 +77,19 @@ def test_preview_update_loop_regression(qapp):
 
     # Assert: Recording should still be True
     assert edit.recording is True, "Recording should persist through text updates and setMode calls"
+
+
+def _record(edit, key, modifiers=Qt.KeyboardModifier.NoModifier):
+    edit.setIsRecording(True)
+    edit.keyPressEvent(QKeyEvent(QEvent.Type.KeyPress, key, modifiers))
+    return edit.text()
+
+
+def test_records_names_the_hook_understands(qapp):
+    """Qt's own names ('pgup', 'ins', '+') must be saved in canonical form."""
+    edit = KeySequenceEdit()
+    assert _record(edit, Qt.Key.Key_PageUp, Qt.KeyboardModifier.ControlModifier) == ("ctrl+page_up")
+    assert _record(edit, Qt.Key.Key_PageDown) == "page_down"
+    assert _record(edit, Qt.Key.Key_Insert) == "insert"
+    assert _record(edit, Qt.Key.Key_Return) == "enter"
+    assert _record(edit, Qt.Key.Key_Plus, Qt.KeyboardModifier.ControlModifier) == "ctrl+plus"
